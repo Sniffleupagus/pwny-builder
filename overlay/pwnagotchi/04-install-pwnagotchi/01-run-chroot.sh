@@ -481,4 +481,3 @@ rm -rf /usr/local/src/*
 rm -rf /usr/local/go
 
 echo "==== Woohoo! ===="
-curl -s -d "Pwnagotchi built " ntfy.sh/pwny_builder

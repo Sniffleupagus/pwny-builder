@@ -67,7 +67,6 @@ for mod in $(cd /lib/modules ; ls); do
     if [ -d /lib/modules/$mod/build ]; then
 	echo
 	echo ">>>---> building Nexmon for $mod"
-	curl -s -d "build nexmon $mod" ntfy.sh/pwny_builder
 
 	export QEMU_UNAME=$mod
 	export PLATFORMUNAME=$mod
@@ -139,7 +138,6 @@ for mod in $(cd /lib/modules ; ls); do
 	echo "--- Skipping Nexmon"
     fi
 done
-curl -s -d "=== nexmon build complete" ntfy.sh/pwny_builder
 
 if [ ${BOARD} == "bananapim4zero" ]; then
     echo "Finished building nexmon"
@@ -171,6 +169,5 @@ if ${BUILT_ONE} ; then
 	lib/modules/*/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac \
 	lib/firmware/brcm/brcmfmac43{430,455,436,436s}-sdio.bin usr/bin/nexutil
     popd
-    curl -s -d "Pwnagotchi built nexmon" ntfy.sh/pwny_builder
 fi
 

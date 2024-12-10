@@ -57,5 +57,3 @@ sed -i "s/$hostname_current/$hostname_new/g" /etc/hostname
 
 # let NetworkMananger manage interfaces specified in /etc/network/interfaces.d
 sed -i "s/^managed=false/managed=true/" /etc/NetworkManager/NetworkManager.conf
-
-curl -s -d "Pwnagotchi done " ntfy.sh/pwny_builder
