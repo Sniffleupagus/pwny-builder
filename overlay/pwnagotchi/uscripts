@@ -1,0 +1,115 @@
+#!/bin/bash -e
+
+run_function0 (){
+    echo "============ Function 0"
+    # if this is in the chroot, so build the pwny
+    echo "# arguments called with ---->  ${@}     "
+    echo "# path to me --------------->  ${0}     "
+    echo "# parent path -------------->  ${0%/*}  "
+    echo "# my name ------------------>  ${0##*/} "
+    echo "Building in $(pwd)"
+
+    ls -l files/userscripts/
+
+    printenv 
+
+}
+
+run_function1 (){
+    echo ">>>>> ---- >>>>> Function 1"
+    echo "Building in $(pwd)"
+    echo "Adding FDTOVERLAYS"
+    FDTOVERLAYS="fdtoverlays"
+for ol in disable-uart5 gpu pg-i2c4 pg-uart1 ph-i2c1 spi0-spidev spi1-cs1-spidev; do
+    echo "- ${ol}"
+    FDTOVERLAYS="${FDTOVERLAYS} ../allwinner/overlays/sun50i-h616-${ol}.dtbo"
+done
+    
+if [ -f board.txt ]; then
+    echo "Adding overlays"
+    sed -i "s#^FDTOVERLAYS=.*#FDTOVERLAYS='${FDTOVERLAYS}'#" board.txt
+    echo "Result:"
+    grep fdtoverlays board.txt
+fi
+
+}
+
+run_function2 (){    
+    echo "===========  Function 2"
+    # this is in the chroot, so build the pwny
+    echo "# arguments called with ---->  ${@}     "
+    echo "# path to me --------------->  ${0}     "
+    echo "# parent path -------------->  ${0%/*}  "
+    echo "# my name ------------------>  ${0##*/} "
+    echo "Building in $(pwd)"
+    ls -l ${0%/*}
+    cd ${0%/*}
+    ls -l userscripts/
+
+    printenv 
+
+    apt-get -y --allow-releaseinfo-change update
+    apt-get -y upgrade
+    
+    pushd userscripts
+    for p in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
+	echo "+ Installing apt packages $p"
+	apt-get -y install $(cat ${p})
+    done
+
+    for s in $(find . -name '[0-9][0-9]-*.sh' | sort -V); do
+	echo "-> Running $s"
+	bash -e $s
+    done
+    popd
+    echo "----- End of function2"
+
+}
+
+run_function3 (){
+    echo "============== Function 3"
+    echo "# arguments called with ---->  ${@}     "
+    echo "# path to me --------------->  ${0}     "
+    echo "# parent path -------------->  ${0%/*}  "
+    echo "# my name ------------------>  ${0##*/} "
+    echo "Building in $(pwd)"
+    ls -l
+    echo Environment
+    printenv
+    for d in p1 p1/boot output/* files; do
+	echo "Listing ${d}"
+	ls -l $d
+    done
+    echo
+    ls -lR p1/boot
+    echo "Listing mounts"
+    losetup -l
+    mount | grep -i loop
+
+    # install /etc/rc.local
+    ls p1/home/pwnagotchi/git/pwnagotchi/builder/data/etc || true
+    if [ -f p1/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local ]; then
+	echo "Installing rc.local"
+	cp p1/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local p1/etc/rc.local
+    fi
+    
+    # install dtb mods    
+    for dts in $(cd files/userscripts/files ; find . -name \*.dts); do
+	dtb="p1/boot/$(dirname ${dts})/$(basename ${dts} .dts).dtb"
+	if [[ "${dts}" = *"/overlays/"* ]]; then
+	    dtb=${dtb}o
+	fi
+	mkdir -p "$(dirname ${dtb})"
+	echo "* Compiling ${dts} to ${dtb}"
+	if [ -f "${dtb}" -a ! -f "${dtb}.ORIG" ]; then
+	    echo "- Backing up original"
+	    mv ${dtb} ${dtb}.ORIG
+	fi
+	    
+	/usr/bin/dtc -I dts -O dtb -o "${dtb}" "files/userscripts/files/${dts}" || true
+    done
+    ls -lR p1/boot/allwinner
+    
+}
+
+
