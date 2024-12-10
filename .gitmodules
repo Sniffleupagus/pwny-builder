@@ -1,0 +1,3 @@
+[submodule "builders/armbian-build"]
+	path = builders/armbian-build
+	url = git@github.com:armbian/build.git
