@@ -11,12 +11,10 @@ These currently work in [armbian-build](https://github.com/armbian/build), and m
 To use this with armbian-build, make a git clone of armbian-build. From this repo, copy **overlay, extensions, customize-image.sh** and **config-bananapwnm4zero.conf** into armbian-build/userpatches/
 
 ```
+apt-get -y install git
 # clone this repo
 git clone https://github.com/Sniffleupagus/pwny-builder.git
 # clone armbian-build
-
-# go read about armbian-build and install any dependencies it needs
-
 git clone https://github.com/armbian/build.git armbian-build
 cd armbian-build
 # copy the files from pwny-builder into userpatches
