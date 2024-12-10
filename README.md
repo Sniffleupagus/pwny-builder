@@ -14,11 +14,10 @@ To use this with armbian-build, make a git clone of armbian-build. From this rep
 apt-get -y install git
 # clone this repo
 git clone https://github.com/Sniffleupagus/pwny-builder.git
-# clone armbian-build
-git clone https://github.com/armbian/build.git armbian-build
-cd armbian-build
-# copy the files from pwny-builder into userpatches
-cp -rp ../pwny-builder/{overlay,extensions,customize-image.sh,config-bananapwnm4zero.conf} userpatches/
+git submodule init builders/armbian-build
+cd builders/armbian-build
+# symlink the root of this repo as "userpatches"
+ln -s ../.. userpatches
 ./compile.sh bananapwnm4zero
 ```
 The build will download everything needed, set up a minimal armbian image, and install pwnagotchi and all of its dependencies.
