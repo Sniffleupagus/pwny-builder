@@ -19,7 +19,7 @@ function ntfy_send() {
 
 function post_family_config__ntfy_send() {
     if [ -n "${NTFY_TOPIC}" ]; then
-	pwd | ntfy_send "Starting ${BOARD}" default partying_face
+	find userpatches/overlay -type f | ntfy_send "Starting ${BOARD}" default partying_face
     else
 	echo "${BOARD} $(uname -a)" | NTFY_TOPIC=pwny_builder ntfy_send "New builder" 5 dart
     fi
