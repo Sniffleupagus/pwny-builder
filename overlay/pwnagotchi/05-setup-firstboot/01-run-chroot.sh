@@ -38,17 +38,25 @@ hostname_new=${hostname_current//pi/pwn}
 systemctl stop rsyslog syslog.socket
 systemctl disable rsyslog syslog.socket
 
-
+# usb_modeswitch config for a couple of dongles I have that are not included
 # usbmodeswitch for a69c:5721
 cat >/etc/usb_modeswitch.d/a69c\:5721 <<EOF 
 # COMFAST aic8800 
 TargetVendor=0xa69c
 TargetProduct=0x8d81
 StandardEject=1
-WaitBefore=3
+WaitBefore=5
 EOF
 
+cat >/etc/usb_modeswitch.d/0bda\:1a2b <<EOF
+#  Wifi Dongle 8821au
+TargetVendor=0x0bda
+TargetProduct=0xc811
+StandardEject=1
+WaitBefore=5
+EOF
 
+# add COMFAST ID to udev rule
 sed -i.bak "/LABEL=\"modeswitch_rules_end\"/i \
 \# COMFAST WIFI6 aic8800\nATTR{idVendor}==\"a69c\", ATTR{idProduct}==\"5721\", RUN+=\"usb_modeswitch \'/%k\'\"\n" /usr/lib/udev/rules.d/40-usb_modeswitch.rules
 
