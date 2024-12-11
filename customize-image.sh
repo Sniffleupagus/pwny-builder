@@ -104,16 +104,16 @@ Main() {
 
 
 	echo "===== apt update ====="
-	apt-get -y --allow-releaseinfo-change update
+	apt-get -yq --allow-releaseinfo-change update
 	echo "===== apt upgrade ====="
-	apt-get -y upgrade 2>&1 | tee -a ${PWNLOGFILE}
+	apt-get -yq upgrade 2>&1 | tee -a ${PWNLOGFILE}
 	tail -3 ${PWNLOGFILE} | ntfy_send "Apt Upgrade" 1 package
 
 	echo "===== pwnagotchi packages ====="
 	pushd /tmp/overlay/pwnagotchi
 	for p in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
  	    echo "=---> $p" | tee -a ${PWNLOGFILE}
-	    apt-get -y install $(cat ${p}) 2>&1 | tee -a ${PWNLOGFILE}
+	    apt-get -yq install $(cat ${p}) 2>&1 | tee -a ${PWNLOGFILE}
 	    tail -1 ${PWNLOGFILE} | ntfy_send "$p" 1 package
 	done
 
