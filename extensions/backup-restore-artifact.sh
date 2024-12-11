@@ -23,18 +23,12 @@ function ntfy_send() {
 }
 
 function pre_customize_image__restore_prior_artifacts() {
-    mkdir -p ${PWNY_ARTIFACT_ROOT}/${BOARD}
     mkdir -p ${PWNY_ARTIFACT_DEST}
-    ls -l ${PWNY_ARTIFACT_DEST} 2>&1 | ntfy_send "Set up temporary ${BOARD}" default partying_face
-
     pushd ${PWNY_ARTIFACT_DEST}
     for f in *; do
 	echo $f
-	cp -rpf $f /
+	cp -rpf $f ${SDCARD}/
     done 2>&1 | ntfy_send "Installed Old Artifacts" default cd
-
-    cp ${SDCARD}/tmp/pwnagotchi.* /tmp
-
 }
 
 function post_customize_image__backup_new_artifacts() {
@@ -45,8 +39,8 @@ function post_customize_image__backup_new_artifacts() {
 	mkdir -p ${PWNY_ARTIFACT_DEST}
 	cp -rp * ${PWNY_ARTIFACT_DEST}/
     fi
-    
+
+    if ls ${SDCARD}/tmp/pwnagotchi.*; then
+	cp ${SDCARD}/tmp/pwnagotchi.* /tmp
+    fi
 }
-
-
-
