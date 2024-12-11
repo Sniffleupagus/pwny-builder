@@ -389,10 +389,12 @@ if [ -f /boot/armbianEnv.txt ]; then
 	pushd /boot/dtb/allwinner
 	echo "*** Changing SPI1 MISO to PC4 to avoid clash with displayhatmini"
 	mv sun50i-h618-bananapi-m4-zero.dtb sun50i-h618-bananapi-m4-zero.dtb.ORIG
-	dtc -I dtb -O dts sun50i-h618-bananapi-m4-zero.dtb.ORIG | sed 's/pins = \"PH6\\0PH7\\0PH8/pins = \"PH6\\0PH7\\0PC4/' | dtc -I dts -O dtb -o sun50i-h618-bananapi-m4-zero.dtb
+	dtc -I dtb -O dts sun50i-h618-bananapi-m4-zero.dtb.ORIG | sed 's/pins = \"PH6\\0PH7\\0PH8/pins = \"PH6\\0PH7\\0PC4/' | dtc -I dts -O dtb -o sun50i-h618-bananapi-m4-zero.dtb.V1
+	cp sun50i-h618-bananapi-m4-zero.dtb.V1 sun50i-h618-bananapi-m4-zero.dtb
 
 	# still need to fix "i2c4-pi" for V2. maybe as part of the V2 overlay
-	
+	dtc -I dtb -O dts sun50i-h618-bananapi-m4-zero.dtb.ORIG | sed 's/pins = \"PG15\\0PG16/pins = \"PI5\\0PI6/' | dtc -I dts -O dtb -o sun50i-h618-bananapi-m4-zero.dtb.V2
+
 	cd overlay
 	echo "+++ Creating i2c4-pg.dtbo for Pisugar i2c pins"
 	mkdir /boot/overlay-user
