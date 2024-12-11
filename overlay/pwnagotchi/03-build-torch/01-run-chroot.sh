@@ -5,7 +5,6 @@ echo "*=*=---*> Torch and Torchvision"
 pushd /tmp
 if pip3 download --no-deps torchvision ; then
     echo "* Torch can be downloaded, so not building. Whew!"
-    popd
     exit
 else
     echo "*    No precompiled torchvision available."
@@ -26,7 +25,6 @@ if [ ! -d pytorch ]; then
 else
     echo "Already dun git it"
 fi
-
 
 pushd pytorch
 
