@@ -1,3 +1,6 @@
 [submodule "builders/armbian-build"]
 	path = builders/armbian-build
 	url = git@github.com:armbian/build.git
+[submodule "packages/pwnagotchi-snflpgs"]
+	path = packages/pwnagotchi-snflpgs
+	url = https://github.com/Sniffleupagus/pwnagotchi-snflpgs.git

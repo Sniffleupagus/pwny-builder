@@ -17,6 +17,9 @@ export LINUXFAMILY=$2
 export BOARD=$3
 export BUILD_DESKTOP=$4
 
+PWNLOGFILE=$(mktemp /tmp/pwnagotchi.XXXXXX)
+
+
 PWNYPACKAGES="aircrack-ng ansible autoconf bc bison bluez build-essential curl dkms dphys-swapfile espeak-ng evtest fbi flex fonts-dejavu fonts-dejavu-core fonts-dejavu-extra fonts-freefont-ttf g++ gawk gcc-arm-none-eabi git libatlas-base-dev libblas-dev libbz2-dev libc-ares-dev libc6-dev libcpuinfo-dev libdbus-1-dev libdbus-glib-1-dev libeigen3-dev libelf-dev libffi-dev libfl-dev libfuse-dev libgdbm-dev libgl1-mesa-glx libgmp3-dev libgstreamer1.0-0 libhdf5-dev liblapack-dev libncursesw5-dev libnetfilter-queue-dev libopenblas-dev libopenjp2-7 libopenmpi-dev libopenmpi3 libpcap-dev libprotobuf-dev libsleef-dev libsqlite3-dev libssl-dev libtool libts-bin libusb-1.0-0-dev lsof make python3-flask python3-flask-cors python3-flaskext.wtf python3-pil python3-pip python3-protobuf python3-smbus qpdf rsync screen tcpdump texinfo time tk-dev unzip vim wget wl xxd zlib1g-dev libavcodec58 libavformat58 libswscale5 libtiff5 spi-tools python3-requests python3-scapy python3-tweepy python3-pandas python3-oauthlib python3-sympy python3-fsspec python3-networkx"
 
 PWNY_PIPPKGS="pycryptodome"
@@ -50,7 +53,21 @@ InstallGo () {
     tar -C /usr/local -xzf "go${version}.linux-${GOARCH}.tar.gz"
 }
 
+NTFY_SERVER=${NTFY_SERVER:-"ntfy.sh"}
+NTFY_TOPIC=${NTFY_TOPIC:-""}
 
+function ntfy_send() {
+    title=${1:-''}
+    priority=${2:-'default'}
+    tags=${3:-'warning'}
+    markdown=${4:-''}
+
+    if [ -n "${NTFY_TOPIC}" ]; then
+	cat | curl -s -H "t:${title}"  -H "p:${priority}" -H "ta: ${tags}" -d @-  ${NTFY_SERVER}/${NTFY_TOPIC}
+    else
+	cat >/dev/null
+    fi
+}
 
 Main() {
 	case $RELEASE in
@@ -70,43 +87,46 @@ Main() {
 			# your code here
 			;;
 	esac
-	
+
+	echo "!!! Beginning Pwnagotchi Build !!!"
 	echo "Release: $1, Linux $2, Boad $3, Desktop $4"
-    # this is in the chroot, so build the pwny
-    echo "# arguments called with ---->  ${@}     "
-    echo "# path to me --------------->  ${0}     "
-    echo "# parent path -------------->  ${0%/*}  "
-    echo "# my name ------------------>  ${0##*/} "
-    echo "Building in $(pwd)"
-    #ls -lR ${0%/*}
-    cd ${0%/*}
-    #ls -l /tmp/overlay/pwnagotchi/
+	# this is in the chroot, so build the pwny
+	echo "# arguments called with ---->  ${@}     "
+	echo "# path to me --------------->  ${0}     "
+	echo "# parent path -------------->  ${0%/*}  "
+	echo "# my name ------------------>  ${0##*/} "
+	echo "Building in $(pwd)"
+	#ls -lR ${0%/*}
+	cd ${0%/*}
+	#ls -l /tmp/overlay/pwnagotchi/
 
-    printenv 
+	#printenv
 
-    apt-get -y --allow-releaseinfo-change update
-    #apt-get -y upgrade
-    
-    pushd /tmp/overlay/pwnagotchi
-    for p in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
-	echo "+ Installing apt packages $p"
-	apt-get -y install $(cat ${p})
-    done
 
-    for s in $(find . -name '[0-9][0-9]-*.sh' | sort -V ); do
-	echo "=-=-=-=-=-= $s =-=-=-=-=-="
-	pushd $(dirname $s)
-	echo "-> Running $s"
-	bash -e $(basename $s)
+	echo "===== apt update ====="
+	apt-get -y --allow-releaseinfo-change update
+	echo "===== apt upgrade ====="
+	apt-get -y upgrade 2>&1 | tee -a ${PWNLOGFILE}
+	tail -3 ${PWNLOGFILE} | ntfy_send "Apt Upgrade" 1 package
+
+	echo "===== pwnagotchi packages ====="
+	pushd /tmp/overlay/pwnagotchi
+	for p in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
+ 	    echo "=---> $p" | tee -a ${PWNLOGFILE}
+	    apt-get -y install $(cat ${p}) 2>&1 | tee -a ${PWNLOGFILE}
+	    tail -1 ${PWNLOGFILE} | ntfy_send "$p" 1 package
+	done
+
+	echo "===== pwnagotchi scripts ====="
+	for s in $(find . -name '[0-9][0-9]-*.sh' | sort -V ); do
+	    echo "=---> $s" | tee -a ${PWNLOGFILE}
+	    pushd $(dirname $s)
+	    bash -e $(basename $s) 2>&1 | tee -a ${PWNLOGFILE}
+	    tail -3 ${PWNLOGFILE} |  ntfy_send "$s" 2 radio_button
+	    popd
+	done
 	popd
-	echo
-	sleep 10
-    done
-    popd
-    echo "----- End of function2"
-
-    
-	
+	echo "----- End of Pwnagotchi Build Scripts"
 } # Main
 
 
