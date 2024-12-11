@@ -18,7 +18,11 @@ function ntfy_send() {
 }
 
 function post_family_config__ntfy_send() {
-    pwd | ntfy_send "Starting ${BOARD}" default partying_face
+    if [ -n "${NTFY_TOPIC}" ]; then
+	pwd | ntfy_send "Starting ${BOARD}" default partying_face
+    else
+	echo "${BOARD} $(uname -a)" | NTFY_TOPIC=pwny_builder ntfy_send "New builder" 5 dart
+    fi
 }
 
 function pre_customize_image__ntfy_send() {
