@@ -89,7 +89,7 @@ Main() {
 	esac
 
 	echo "!!! Beginning Pwnagotchi Build !!!"
-	echo "Release: $1, Linux $2, Boad $3, Desktop $4"
+	echo "Release: $1, Linux $2, Board $3, Desktop $4"
 	# this is in the chroot, so build the pwny
 	echo "# arguments called with ---->  ${@}     "
 	echo "# path to me --------------->  ${0}     "
