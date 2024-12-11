@@ -6,8 +6,8 @@ NTFY_TOPIC=${NTFY_TOPIC:-""}
 
 
 # list of files we are interested in
-export PWNY_ARTIFACT_DEST=${PWNY_ARTIFACT_DEST:-"overlay/pwnagotchi/files/${BOARD}"}
-export PWNY_ARTIFACT_ROOT=${SDCARD}/tmp/pwny_parts
+export PWNY_ARTIFACT_DEST=${PWNY_ARTIFACT_DEST:-"userpatches/overlay/pwnagotchi/files/${BOARD}"}
+export PWNY_ARTIFACT_ROOT=/tmp/pwny_parts
 			    
 function ntfy_send() {
     title=${1:-''}
@@ -23,21 +23,27 @@ function ntfy_send() {
 }
 
 function pre_customize_image__restore_prior_artifacts() {
-    mkdir -p ${PWNY_ARTIFACT_DEST}
-    pushd ${PWNY_ARTIFACT_DEST}
-    for f in *; do
-	echo $f
-	cp -rpf $f ${SDCARD}/
-    done 2>&1 | ntfy_send "Installed Old Artifacts" default cd
+    if [ -d ${PWNY_ARTIFACT_DEST} ]; then
+	pushd ${PWNY_ARTIFACT_DEST}
+	for f in *; do
+	    echo $f
+	    cp -rpf $f ${SDCARD}/
+	done 2>&1 | ntfy_send "Installed Old Artifacts" default cd
+	popd
+    fi
 }
 
 function post_customize_image__backup_new_artifacts() {
-    pushd ${PWNY_ARTIFACT_ROOT}
-    ls -ltrR
-    ls -ltrR | ntfy_send "New artifacts" default package
+    pushd ${SDCARD}/${PWNY_ARTIFACT_ROOT}
+    find . -type f
+    find . -type f | ntfy_send "New artifacts" default package
+    popd
+
     if [ -n "$(ls)" ]; then
 	mkdir -p ${PWNY_ARTIFACT_DEST}
-	cp -rp * ${PWNY_ARTIFACT_DEST}/
+	for f in  ${SDCARD}/${PWNY_ARTIFACT_ROOT}/* ; do
+	    cp -rp $f ${PWNY_ARTIFACT_DEST}/$(basename f) || true
+	done
     fi
 
     if ls ${SDCARD}/tmp/pwnagotchi.*; then
