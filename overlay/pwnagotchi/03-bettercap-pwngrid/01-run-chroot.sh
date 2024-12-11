@@ -33,11 +33,8 @@ if !  ${ROOTFS_DIR}/usr/local/go/bin/go version | grep ${go_version}; then
     popd
 fi
 
-apt-get install -y pkg-config
-
-echo "Build and install go packages"
-
 export repo="jayofelony"
+
 export go_pkgs="bettercap pwngrid"
 
 for pkg in ${go_pkgs}; do
@@ -91,7 +88,6 @@ BETTERCAP_DIR="${ROOTFS_DIR}/usr/local/share/bettercap"
 mkdir -p ${BETTERCAP_DIR}
 
 pushd /home/pwnagotchi/git
-#apt-get install -y npm
 
 BCAP_UI_ZIPFILE="/tmp/overlay/pwnagotchi/files/bettercap-ui.zip"
 
@@ -110,36 +106,22 @@ else
     unzip ui.zip && rm ui.zip
 fi
 
-for sub in caplets; do
-    if [ -d "$sub" ]; then
-	echo "----- Skipping bettercap $sub"
-    else
-	echo "+ Setting up bettercap $sub:"
-	git clone ${BETTERCAP_REPO}/${sub} bettercap-${sub}
-	cd bettercap-${sub}
-	if [[ $sub = "ui" ]]; then
-	    make deps
-	    make build
-	    make install
-	else
-	    make install
-	fi
-	cd ..
-	rm -rf bettercap-$sub
-    fi
-done
-
-
-echo "~ Fixing caplets to not change interface, and webui always active:"
+# install caplets
 # iface is specified on command line, which is correct when pwnlib is modified
 #     setting the iface in the caplet is not needed
 # webui can be active during AUTO, too, with no issues
+echo "+++ Installing caplets"
 pushd ${BETTERCAP_DIR}
-ls
+/usr/local/bin/bettercap -caplets-path ${ROOTFS_DIR}/${BETTERCAP_DIR} -eval "caplets.update ; quit" || true
 cd caplets
-ls -l
-(grep -v "set wifi.interface" pwnagotchi-manual.cap | tee pwnagotchi-auto.cap) || true
-cp pwnagotchi-auto.cap pwnagotchi-manual.cap || true
+if [[ -f pwnagotchi-manual.cap ]]; then
+    echo "~ Fixing caplets to not change interface, and webui always active:"
+    (grep -v "set wifi.interface" pwnagotchi-manual.cap | tee pwnagotchi-auto.cap) || true
+    cp pwnagotchi-auto.cap pwnagotchi-manual.cap || true
+else
+    echo "No caplet to fix"
+    ls -l
+fi
 popd # caplets
 
 
