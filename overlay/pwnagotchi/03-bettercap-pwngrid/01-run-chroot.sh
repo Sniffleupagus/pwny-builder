@@ -44,6 +44,9 @@ for pkg in ${go_pkgs}; do
     echo " --> Checking for $pkg"
     if [ -f  ${ROOTFS_DIR}/usr/local/bin/$pkg ] ; then
 	ls -l  ${ROOTFS_DIR}/usr/local/bin/$pkg
+    elif [ -f /tmp/overlay/pwnagotchi/files/${BOARD}/usr/local/bin/$pkg ]; then
+	echo "+-> Installing precompiled $pkg"
+	cp -rp /tmp/overlay/pwnagotchi/files/${BOARD}/usr/local/bin/$pkg /usr/local/bin
     else
 	pushd ${ROOTFS_DIR}/usr/local/src
 
@@ -67,6 +70,10 @@ for pkg in ${go_pkgs}; do
 	make install
 	popd
 
+	echo "---> backing up $pkg"
+	mkdir -p /tmp/pwny_parts/usr/local/bin
+	cp /usr/local/bin/$pkg /tmp/pwny_parts/usr/local/bin
+
 	if [ -d ${INCOMING} ]; then
 	    echo "# Saving binary to incoming files"
 	    mkdir -p ${INCOMING}/lbin
@@ -89,10 +96,6 @@ pushd /home/pwnagotchi/git
 BCAP_UI_ZIPFILE="/tmp/overlay/pwnagotchi/files/bettercap-ui.zip"
 
 # install latest bettercap/ui release
-if [ ! -f "${BCAP_UI_ZIPFILE}" ]; then
-    echo "+++ Downloading bettercap ui.zip"
-    curl -o ${BCAP_UI_ZIPFILE} -L https://github.com/bettercap/ui/releases/download/v1.3.0/ui.zip
-fi
  
 if [ -f "${BCAP_UI_ZIPFILE}" ]; then
     echo "=== Unpacking bettercap ui tarball ${BCAP_UI_TARFILE}"
@@ -100,7 +103,11 @@ if [ -f "${BCAP_UI_ZIPFILE}" ]; then
     unzip ${BCAP_UI_ZIPFILE}
     popd
 else
-    echo "XXX --- > Bettercap UI is missing"
+    echo "+++ Downloading bettercap ui.zip"
+    pushd ${BETTERCAP_DIR}
+    curl -OL https://github.com/bettercap/ui/releases/download/v1.3.0/ui.zip
+    ls -l
+    unzip ui.zip && rm ui.zip
 fi
 
 for sub in caplets; do
@@ -108,7 +115,7 @@ for sub in caplets; do
 	echo "----- Skipping bettercap $sub"
     else
 	echo "+ Setting up bettercap $sub:"
-	git clone ${BETTERCAP_REPO}/$sub bettercap-${sub}
+	git clone ${BETTERCAP_REPO}/${sub} bettercap-${sub}
 	cd bettercap-${sub}
 	if [[ $sub = "ui" ]]; then
 	    make deps
@@ -127,7 +134,9 @@ echo "~ Fixing caplets to not change interface, and webui always active:"
 # iface is specified on command line, which is correct when pwnlib is modified
 #     setting the iface in the caplet is not needed
 # webui can be active during AUTO, too, with no issues
-pushd ${BETTERCAP_DIR}/caplets
+pushd ${BETTERCAP_DIR}
+ls
+cd caplets
 ls -l
 (grep -v "set wifi.interface" pwnagotchi-manual.cap | tee pwnagotchi-auto.cap) || true
 cp pwnagotchi-auto.cap pwnagotchi-manual.cap || true
