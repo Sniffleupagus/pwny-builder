@@ -17,7 +17,8 @@ cd /usr/local/src
 mkdir -p ${PHOME}/git
 pushd ${PHOME}/git
 
-NEXMON_TARFILE="/tmp/overlay/pwnagotchi/files/nexmon-dev.zip"
+NEXMON_TARFILE="/tmp/overlay/pwnagotchi/files/nexmon.zip"
+NEXMON_URL="https://github.com/DrSchottky/nexmon/archive/refs/heads/dev.zip"
 
 if [ ! -d nexmon ]; then
     if [ -f "${NEXMON_TARFILE}" ]; then
@@ -28,8 +29,17 @@ if [ ! -d nexmon ]; then
 	    mv nexmon-dev nexmon
 	fi
     else
-	echo "=== cloning nexmon repository $NEXMON_REPO"
-	git clone --depth=1 $NEXMON_REPO
+	echo "+-> Downloading nexmon.zip"
+	curl -o nexmon.zip -L ${NEXMON_URL}
+	if [ -f nexmon.zip ]; then
+	    echo "+-> Unpacking nexmon.zip"
+	    unzip -q nexmon.zip
+	    mv nexmon-dev nexmon
+	    rm nexmon.zip
+	else
+	    echo "=== cloning nexmon repository ${NEXMON_REPO}"
+	    git clone --depth=1 $NEXMON_REPO
+	fi
     fi
     cd nexmon
 else
@@ -56,6 +66,8 @@ if [ ! -f /usr/bin/nexutil ]; then
     make install
     BUILT_ONE=true
     popd
+    mkdir -p /tmp/pwny_parts/usr/bin
+    cp /usr/bin/nexutil /tmp/pwny_parts/usr/bin
 fi
 
 # for each kernel with a build directory
@@ -114,6 +126,10 @@ for mod in $(cd /lib/modules ; ls); do
 		echo "   > Compressing driver"
 		which xz
 		xz --verbose -c brcmfmac.ko.NEXMON > brcmfmac.ko.xz
+
+		# copy to /tmp/pwny_parts
+		mkdir -p /tmp/pwny_parts/${MOD_DEST}
+		cp brcmfmac.ko.xz brcmfmac.ko.NEXMON /tmp/pwny_parts/${MOD_DEST}
 	    elif [ -f brcmfmac.ko ]; then
 		if [ -f brcmfmac.ko.ORIG ]; then
 		    rm -f brcmfmac.ko
@@ -122,7 +138,10 @@ for mod in $(cd /lib/modules ; ls); do
 		    mv brcmfmac.ko brcmfmac.ko.ORIG
 		fi
 		echo "  > Copying new driver"
-		ln brcmfmac.ko.NEXMON brcmfmac.ko
+		cp brcmfmac.ko.NEXMON brcmfmac.ko
+		# copy to /tmp/pwny_parts
+		mkdir -p /tmp/pwny_parts/${MOD_DEST}
+		cp brcmfmac.ko brcmfmac.ko.NEXMON /tmp/pwny_parts/${MOD_DEST}
 	    fi
 	    
 	    echo "++> Installed ${mod} kernel driver"
@@ -162,8 +181,9 @@ else
 fi
 
 if ${BUILT_ONE} ; then
+    depmod -a
     echo " *> Saving all nexmon products"
-    INCOMING=/tmp
+    INCOMING=/tmp/pwny_parts
     pushd /
     tar -cvvzf ${INCOMING}/nexmon_backup.tar.gz \
 	lib/modules/*/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac \
