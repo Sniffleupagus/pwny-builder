@@ -167,8 +167,11 @@ if [ ${BOARD} == "bananapim4zero" ]; then
     fi
     echo "Copying nexmon 43455 firmware to updates/brcm/cyfmac43455-sdio.bin"
     cp -f brcm/brcmfmac43455-sdio.bin updates/brcm/cyfmac43455-sdio.bin
-
-    exit
+    mkdir -p /tmp/pwny_parts/usr/lib/firmware/brcm
+    mkdir -p /tmp/pwny_parts/usr/lib/firmware/updates/brcm
+    cp -f brcm/brcmfmac43455-sdio.bin /tmp/pwny_parts/usr/lib/firmware/brcm
+    cp -f brcm/brcmfmac43455-sdio.bin /tmp/pwny_parts/usr/lib/firmware/updates/brcm
+    cp -f brcm/brcmfmac43455-sdio.bin /tmp/pwny_parts/usr/lib/firmware/updates/brcm/cyfmac43455-sdio.bin
 else
     # raspberry pi
     if [ ! -L /usr/lib/firmware/brcm/brcmfmac43436s-sdio.bin ]; then
