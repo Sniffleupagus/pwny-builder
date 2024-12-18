@@ -8,9 +8,19 @@ This started with [pi-gen](https://github.com/RPi-Distro/pi-gen.git). The script
 
 ## armbian-build
 These currently work with [armbian-build](https://github.com/armbian/build), and make a working pwnagotchi for bananapim4zero (both versions). Any other example configs have not been well tested.
-To build a pwnagotchi:
+
+## debian-image-builder
+These will eventually ("soon") work with [debian-image-builder](https://github.com/pyavitz/debian-image-builder). I have an almost working image from this on V1 bananapim4zero. It does not set up device tree overlays, so no devices work without intervention.  I have not been able to get the nexmon build to pick the correct build directories, so no V2 board support yet. There's a "uname -r" somewhere that I can't find.
+
+# pwny-builder requirements:
+- x86_64 / aarch64 machine/VM running Armbian / Ubuntu Jammy 22.04.x
+- armbian-build requires at least 2GB of memory and ~35GB of disk space
+- pwny_builder needs an additional ~15G (or so)
+
+To build a pwnagotchi with armbian-build:
 
 ```
+# install requirement(s)
 apt-get -y install git
 # clone this repo
 git clone https://github.com/Sniffleupagus/pwny-builder.git
