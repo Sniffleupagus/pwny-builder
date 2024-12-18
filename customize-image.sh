@@ -17,6 +17,7 @@ export LINUXFAMILY=$2
 export BOARD=$3
 export BUILD_DESKTOP=$4
 
+
 PWNLOGFILE=$(mktemp /tmp/pwnagotchi.XXXXXX)
 
 
@@ -99,30 +100,41 @@ Main() {
 	#ls -lR ${0%/*}
 	cd ${0%/*}
 	#ls -l /tmp/overlay/pwnagotchi/
-
+	export PWNY_DIR=/tmp/overlay/pwnagotchi
 	#printenv
 
 
 	echo "===== apt update ====="
 	apt-get -yq --allow-releaseinfo-change update
 	echo "===== apt upgrade ====="
-	apt-get -yq upgrade 2>&1 | tee -a ${PWNLOGFILE}
-	tail -3 ${PWNLOGFILE} | ntfy_send "Apt Upgrade" 1 package
+	if [ "${DO_APT_UPGRADE:-'YES'}" == "YES" ]; then
+	    if apt-get -yq upgrade $(cat ${p}) > >(tee -a ${PWNLOGFILE}) 2> >(tee -a ${PWNLOGFILE}.err) ; then
+		tail -1 ${PWNLOGFILE} | ntfy_send "Apt Upgrade" 1 package
+	    else
+		tail -1 ${PWNLOGFILE}.err | ntfy_send "Apt Upgrade" 1 package
+	    fi
+	fi
 
 	echo "===== pwnagotchi packages ====="
 	pushd /tmp/overlay/pwnagotchi
 	for p in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
  	    echo "=---> $p" | tee -a ${PWNLOGFILE}
-	    apt-get -yq install $(cat ${p}) 2>&1 | tee -a ${PWNLOGFILE}
-	    tail -1 ${PWNLOGFILE} | ntfy_send "$p" 1 package
+	    if apt-get -yqq install $(cat ${p}) > >(tee -a ${PWNLOGFILE}) 2> >(tee -a ${PWNLOGFILE}.err) ; then
+		tail -1 ${PWNLOGFILE} | ntfy_send "$p" 1 package
+	    else
+		tail -1 ${PWNLOGFILE}.err | ntfy_send "$p" 1 package
+	    fi
 	done
 
 	echo "===== pwnagotchi scripts ====="
 	for s in $(find . -name '[0-9][0-9]-*.sh' | sort -V ); do
 	    echo "=---> $s" | tee -a ${PWNLOGFILE}
 	    pushd $(dirname $s)
-	    bash -e $(basename $s) 2>&1 | tee -a ${PWNLOGFILE}
-	    tail -3 ${PWNLOGFILE} |  ntfy_send "$s" 2 radio_button
+	    if bash -e $(basename $s) > >(tee -a ${PWNLOGFILE}) 2>&1 ; then
+		tail -3 ${PWNLOGFILE} |  ntfy_send "$s" 2 radio_button
+	    else
+		tail -5 ${PWNLOGFILE} |  ntfy_send "Error $s" 2 radio_button
+	    fi
 	    popd
 	done
 	popd
