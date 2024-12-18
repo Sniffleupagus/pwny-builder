@@ -5,9 +5,9 @@
 # Install version 1.9 of libpcap for backwards compatibility
 
 if [ -e /usr/local/lib/libpcap.so ]; then
-    echo "= Libpcap already installed"
+    echo "=== Libpcap already installed"
 else
-    echo "+ Installing libpcap"
+    echo "+++ Installing libpcap"
     pushd /usr/local/src
     if [ ! -d libpcap ]; then
 	git clone --depth 1  https://github.com/the-tcpdump-group/libpcap.git
