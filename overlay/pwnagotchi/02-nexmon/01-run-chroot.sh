@@ -6,7 +6,7 @@ NEXMON_REPO=https://github.com/DrSchottky/nexmon.git
 # raspberry pi defaults
 NEXMON_PATCHES="patches/bcm43430a1/7_45_41_46/nexmon patches/bcm43455c0/7_45_206/nexmon patches/bcm43436b0/9_88_4_65/nexmon"
 
-if [ ${BOARD} == "bananapim4zero" ]; then
+if [ "${BOARD}" == "bananapim4zero" ]; then
     NEXMON_PATCHES="patches/bcm43455c0/7_45_206/nexmon"
 fi
 
@@ -17,7 +17,7 @@ cd /usr/local/src
 mkdir -p ${PHOME}/git
 pushd ${PHOME}/git
 
-NEXMON_TARFILE="/tmp/overlay/pwnagotchi/files/nexmon.zip"
+NEXMON_TARFILE="${PWNY_DIR}/files/nexmon.zip"
 NEXMON_URL="https://github.com/DrSchottky/nexmon/archive/refs/heads/dev.zip"
 
 if [ ! -d nexmon ]; then
@@ -74,7 +74,7 @@ fi
 ls /lib/modules
 uname -a
 
-for mod in $(cd /lib/modules ; ls); do
+for mod in $(cd /lib/modules ; ls | grep -v 6.1.0-28-arm64  ); do
 
     if [ -d /lib/modules/$mod/build ]; then
 	echo
@@ -160,19 +160,20 @@ done
 
 if [ ${BOARD} == "bananapim4zero" ]; then
     echo "Finished building nexmon"
-    pushd /usr/lib/firmware
+    pushd /lib/firmware
     if [ ! -f  updates/brcm/cyfmac43455-sdio.bin.ORIG ]; then
 	echo "Saving backup of original cyfmac43455 firmware"
 	mv updates/brcm/cyfmac43455-sdio.bin updates/brcm/cyfmac43455-sdio.bin.ORIG
     fi
     echo "Copying nexmon 43455 firmware to updates/brcm/cyfmac43455-sdio.bin"
     cp -f brcm/brcmfmac43455-sdio.bin updates/brcm/cyfmac43455-sdio.bin
-    mkdir -p /tmp/pwny_parts/usr/lib/firmware/brcm
-    mkdir -p /tmp/pwny_parts/usr/lib/firmware/updates/brcm
-    cp -f brcm/brcmfmac43455-sdio.bin /tmp/pwny_parts/usr/lib/firmware/brcm
-    cp -f brcm/brcmfmac43455-sdio.bin /tmp/pwny_parts/usr/lib/firmware/updates/brcm
-    cp -f brcm/brcmfmac43455-sdio.bin /tmp/pwny_parts/usr/lib/firmware/updates/brcm/cyfmac43455-sdio.bin
+    mkdir -p /tmp/pwny_parts/lib/firmware/brcm
+    mkdir -p /tmp/pwny_parts/lib/firmware/updates/brcm
+    cp -f brcm/brcmfmac43455-sdio.bin /tmp/pwny_parts/lib/firmware/brcm
+    cp -f brcm/brcmfmac43455-sdio.bin /tmp/pwny_parts/lib/firmware/updates/brcm
+    cp -f brcm/brcmfmac43455-sdio.bin /tmp/pwny_parts/lib/firmware/updates/brcm/cyfmac43455-sdio.bin
 else
+    echo "NO BANANA PI NEXMON"
     # raspberry pi
     if [ ! -L /usr/lib/firmware/brcm/brcmfmac43436s-sdio.bin ]; then
 	echo Linking 43430 firmware to 43436s for pizero2w with 43430 chip
@@ -188,9 +189,15 @@ if ${BUILT_ONE} ; then
     echo " *> Saving all nexmon products"
     INCOMING=/tmp/pwny_parts
     pushd /
-    tar -cvvzf ${INCOMING}/nexmon_backup.tar.gz \
-	lib/modules/*/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac \
-	lib/firmware/brcm/brcmfmac43{430,455,436,436s}-sdio.bin usr/bin/nexutil
+    if [ ${BOARD} == "bananapim4zero" ]; then
+	tar -cvvzf ${INCOMING}/nexmon_backup.tar.gz \
+	    lib/modules/*/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac \
+	    lib/firmware/brcm/brcmfmac43455-sdio.bin usr/bin/nexutil
+    else
+	tar -cvvzf ${INCOMING}/nexmon_backup.tar.gz \
+	    lib/modules/*/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac \
+	    lib/firmware/brcm/brcmfmac43{430,455,436,436s}-sdio.bin usr/bin/nexutil
+    fix
     popd
 fi
 

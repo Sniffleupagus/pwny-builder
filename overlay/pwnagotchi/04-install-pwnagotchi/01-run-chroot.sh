@@ -9,17 +9,17 @@
 #
 myrndis=${PWNY_RNDIS:-YES}                      # enable RNDIS or not
 mydeauth=${PWNY_DEAUTH:-false}                  # deauth enabled for config.toml
-mydisplay=${PWNY_DISPLAY:-waveshare_3}          # type of display for config.toml, maybe /boot/config.txt
+mydisplay=${PWNY_DISPLAY:-displayhatmini}       # type of display for config.toml, maybe /boot/config.txt
 mytouchscreen=${PWNY_TOUCHSCREEN:-YES}          # enable goodix touchscreen overlay
 mybluetooth=${PWNY_BLUETOOTH:-"NO"}             # host mac address for bt-tether in config.toml
 mybtipaddr=${PWNY_BTIPADDR:-"172.20.10.7"}      # pwny ip address for bt-tether
 
+# default locations
 CONFIGTOML="/etc/pwnagotchi/config.toml"
+custom_plugins="/usr/local/share/pwnagotchi/custom-plugins"
 
-#mybluetooth="B8:49:6D:16:7A:1A"
-#mybtaddr="172.20.10.16"
 pwnyrepo=${PWNY_REPO:-"https://github.com/Sniffleupagus/pwnagotchi-snflpgs"} # pwnagotchi repo to install
-pwnybranch=${PWNY_BRANCH:-"snflpgs"}
+pwnybranch=${PWNY_BRANCH:-""}
 
 # activate venv for pip installs
 . /home/pwnagotchi/.venv/bin/activate
@@ -39,14 +39,12 @@ cd pwnagotchi
 
 uname -a
 
-#echo "Installing OPi.GPIO package"
-#pip3 install 'git+https://github.com/Sniffleupagus/OPi.GPIO@BPIm4zero#egg=OPi.GPIO'
-#pushd /home/pwnagotchi/.venv/lib/*/site-packages
-#ln -s OPi RPi
-#popd
-
-echo "Installing RPi.GPIO fork for both versions of Bananapim4zero"
-pip3 install 'git+https://github.com/Sniffleupagus/RPi.GPIO#egg=RPi.GPIO'
+if [[ "${BOARD}" == "bananapim4zero" ]]; then
+    echo "Installing RPi.GPIO fork for both versions of Bananapim4zero"
+    pip3 install 'git+https://github.com/Sniffleupagus/RPi.GPIO#egg=RPi.GPIO'
+else
+    pip3 install RPi.GPIO
+fi
 
 echo pip3 install -r requirements.txt
 pip3 install -r requirements.txt
@@ -55,6 +53,7 @@ echo "+ Downgrading gym and stable_baselines3 for compatability"
 pip install git+https://github.com/CeyaoZhang/gym.git@v0.21.0
 pip3 install stable_baselines3==1.8.0
 
+echo "Board is ${BOARD}"
 echo "+ 'Installing' pwnagotchi into ~pwnagotchi/.venv with symlinks"
 
 ln -sf $(pwd)/pwnagotchi /home/pwnagotchi/.venv/lib/python*/site-packages/
@@ -65,43 +64,29 @@ pushd builder/data
 
     pushd usr/bin
     echo "++> Installing executables"
-    for f in *; do
-	echo cp $f /usr/bin/$f
-	cp -v $f /usr/bin/$f
-	chmod 755 /usr/bin/$f
+    for f_bin in *; do
+	echo "  \--> ${f_bin} to /usr/bin/${f_bin}"
+	cp -v ${f_bin} /usr/bin/${f_bin}
+	chmod 755 /usr/bin/${f_bin}
     done
     popd
 
     pushd etc
-    
     echo "++> Installing config files into /etc: $(ls)"
     if [ -f /etc/rc.local ]; then
-	echo "+ bring usb0/RNDIS up in /etc/rc.local"
-	sed -i '/^exit 0/inmcli conn up usb0' /etc/rc.local
-	
-	echo "+ backing up /etc/rc.local for after first boot"
+	echo "  + backing up /etc/rc.local for after first boot"
 	cp /etc/rc.local /etc/rc.local.ORIG
     fi
     for i in *; do
-	echo cp -rp $i /etc/
+	echo "  \--> $i to /etc/"
 	cp -rvp $i /etc/
 	chmod -R a+rX /etc/$i
     done
-    echo "Board is ${BOARD}"
-    if [[ "${BOARD}" == "bananapim4zero" ]]; then
-	echo "Setting up RNDIS on usb0 for ${BOARD}"
-	cd /etc/network/interfaces.d
-	# doesn't need this anymore. second port shows up as usb0
-	#mv usb0-cfg usb1-cfg
-	#sed -i 's/usb0/usb1/g' usb1-cfg
-    else
-	echo "WRONG BOARD, but Setting up RNDIS on usb1 anyways"
-	cd /etc/network/interfaces.d
-    fi
     popd
-    sleep 10
-    ls -l
+
     if [ -d boot -a -f /boot/extlinux/extlinux.conf ]; then
+	pwd
+	ls
 	for dts in $(find boot -name \*.dts); do
 	    dtb="/$(dirname ${dts})/$(basename ${dts} .dts).dtb"
 	    mkdir -p "$(dirname ${dtb})"
@@ -123,7 +108,6 @@ gitDownload () {
 }
 
 echo "+++++ Installing Custom Plugins +++++++"
-custom_plugins="/usr/local/share/pwnagotchi/custom-plugins"
 mkdir -p ${custom_plugins}
 
 installPlugins() {
@@ -177,6 +161,38 @@ installPlugins https://github.com/itsOwen/PwnSpotify.git
 echo "++> HannahDiamond plugins"
 installPlugins https://github.com/hannadiamond/pwnagotchi-plugins.git hannahdiamond-plugins plugins ups_hat_c.py
 
+echo "  \--> Patching for configurable i2c bus"
+pushd /home/pwnagotchi/git/hannahdiamond-plugins/plugins
+patch <<EOF
+diff --git a/plugins/ups_hat_c.py b/plugins/ups_hat_c.py
+index 74a45b9..7ab1061 100644
+--- a/plugins/ups_hat_c.py
++++ b/plugins/ups_hat_c.py
+@@ -29,10 +29,10 @@ _REG_CALIBRATION = 0x05
+ 
+ 
+ class UPS:
+-    def __init__(self):
++    def __init__(self, i2c_bus=1):
+         # only import when the module is loaded and enabled
+         import smbus
+-        self._bus = smbus.SMBus(1)
++        self._bus = smbus.SMBus(i2c_bus)
+         self._addr = 0x43
+ 
+         # Set chip to known config values to start
+@@ -103,7 +103,7 @@ class UPSC(plugins.Plugin):
+         self.ups = None
+ 
+     def on_loaded(self):
+-        self.ups = UPS()
++        self.ups = UPS(i2c_bus=self.options.get("i2c_bus", 1))
+ 
+     def on_ui_setup(self, ui):
+         if self.options["label_on"]:
+EOF
+popd
+
 echo "++> FancyGotchi"
 installPlugins https://github.com/V0r-T3x/Fancygotchi.git
 
@@ -226,7 +242,7 @@ if [ ! -d pwnagotchi-utils ]; then
 
     cd pwnagotchi-utils
     for i in *; do
-	echo ln -s $(pwd)/$i ${pwny_bindir}/
+	echo "   \--> ln -s $(pwd)/$i ${pwny_bindir}/"
 	ln -sF $(pwd)/$i ${pwny_bindir}/
     done
 fi
@@ -261,10 +277,37 @@ bettercap.handshakes = "/boot/handshakes/"
 
 ui.backgroundcolor="#ffffff"
 ui.foregroundcolor="#000000"
-ui.colormode="1"
+ui.colormode="RGB"
 main.whitelist = [
 	       "01:02:03:04:05:06"
         ]
+
+main.plugins.IPDisplay.enabled = true
+main.plugins.auto_tune.enabled = true
+ai.enabled = false
+
+main.plugins.ups_hat_c.enabled = false
+main.plugins.ups_hat_c.label_on = true
+main.plugins.ups_hat_c.bat_x_coord = 120
+main.plugins.ups_hat_c.bat_y_coord = 0
+main.plugins.ups_hat_c.shutdown = -5
+main.plugins.ups_hat_c.i2c_bus = 0
+
+main.plugins.pisugar3.enabled = false
+main.plugins.pisugar3.shutdown = -5
+main.plugins.pisugar3.i2c_bus = 4
+
+main.plugins.gpsdeasy.enabled = false
+main.plugins.gpsdeasy.fields = [ "fix", "lat", "lon", "spd", "alt" ]
+main.plugins.gpsdeasy.speedUnit = "mph"
+main.plugins.gpsdeasy.distanceUnit = "ft"
+main.plugins.gpsdeasy.topleft_x = 130
+main.plugins.gpsdeasy.topleft_y = 47
+main.plugins.gpsdeasy.bettercap = true
+main.plugins.gpsdeasy.host = "127.0.0.1"
+main.plugins.gpsdeasy.port = 2947
+main.plugins.gpsdeasy.device = "/dev/ttyS1"
+main.plugins.gpsdeasy.disableAutoSetup = true
 
 main.plugins.rss_voice.enabled = true
 main.plugins.rss_voice.path = "/root/voice_rss"
@@ -387,48 +430,77 @@ if [ -f /boot/armbianEnv.txt ]; then
     if [[ "$BOARD" == "bananapim4zero" ]]; then
 	echo "+-=-=- Configure bananapim4zero DTB hacks"
 	pushd /boot/dtb/allwinner
-	echo "*** Changing SPI1 MISO to PC4 to avoid clash with displayhatmini"
-	mv sun50i-h618-bananapi-m4-zero.dtb sun50i-h618-bananapi-m4-zero.dtb.ORIG
-	dtc -I dtb -O dts sun50i-h618-bananapi-m4-zero.dtb.ORIG | sed 's/pins = \"PH6\\0PH7\\0PH8/pins = \"PH6\\0PH7\\0PC4/' | dtc -I dts -O dtb -o sun50i-h618-bananapi-m4-zero.dtb.V1
-	cp sun50i-h618-bananapi-m4-zero.dtb.V1 sun50i-h618-bananapi-m4-zero.dtb
-
-	# still need to fix "i2c4-pi" for V2. maybe as part of the V2 overlay
-	dtc -I dtb -O dts sun50i-h618-bananapi-m4-zero.dtb.ORIG | sed 's/pins = \"PG15\\0PG16/pins = \"PI5\\0PI6/' | dtc -I dts -O dtb -o sun50i-h618-bananapi-m4-zero.dtb.V2
 
 	cd overlay
-	echo "+++ Creating i2c4-pg.dtbo for Pisugar i2c pins"
-	mkdir /boot/overlay-user
-	dtc -I dtb -O dts sun50i-h616-i2c4-ph.dtbo | sed 's/i2c4_ph_pins/i2c4_pg_pins/' | dtc -I dts -O dtb -o sun50i-h616-i2c4-pg.dtbo
-	
+
+	if [ ! -f sun50i-h616-bananapi-m4-pg-6-7-uart1.dtbo ]; then
+	    echo "+++ Creating PG-6-7 UART1 enable overlay (/dev/ttyS1)"
+	    dtc -I dts -O dtb -o sun50i-h616-bananapi-m4-pg-6-7-uart1.dtbo <<EOF
+/dts-v1/;
+/plugin/;
+/ {
+	fragment@0 {
+		target = <&uart1>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};
+EOF
+	fi
+	if [ ! -f sun50i-h616-bananapi-m4-pg-8-9-rts-cts-uart1.dtbo ]; then
+	    echo "+++ Creating PG-6-7 UART1 enable overlay (/dev/ttyS1)"
+	    dtc -I dts -O dtb -o sun50i-h616-bananapi-m4-pg-8-9-rts-cts-uart1.dtbo <<EOF
+/dts-v1/;
+/plugin/;
+/ {
+	fragment@0 {
+		target = <&uart1>;
+		__overlay__ {
+			status = "okay";
+			pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
+			pinctrl-names = "default";
+			uart-has-rtscts;
+		};
+	};
+};
+EOF
+	fi
 	popd    
     
-	OL_LIST="i2c4-pg spidev0_0 spidev1_1"
+	echo "*-- Bananapim4zero overlays: ${OL_LIST}"
+	sed -i '/^overlays=.*$/d' /boot/armbianEnv.txt
+
+	cat >>/boot/armbianEnv.txt <<EOF
+# BananaPi M4 Zero V1
+# overlays=bananapi-m4-pg-15-16-i2c4 bananapi-m4-spi1-cs1-spidev bananapi-m4-pg-6-7-uart1
+# BananaPi M4 Zero V2
+overlays=bananapi-m4-sdio-wifi-bt bananapi-m4-pi-5-6-i2c0 bananapi-m4-spi1-cs1-spidev bananapi-m4-pi-13-14-uart4
+EOF
+
+	echo "*-- Bananapim4zero - Selecting RTW88 Drivers"
+	cat >/etc/modprobe.d/blacklist-bananapim4zero <<EOF
+#
+# rtw88 drivers work better than 8821cu for pwnagotchi
+#
+#blacklist rtw88_8821c
+#blacklist rtw88_8821cu
+blacklist 8821cu
+EOF
     else
-	echo "***** CONFIGURING NOT BANANA!!!"
-	OL_LIST="spidev1_1"
-    fi
-    OVERLAYS="overlays=${OL_LIST}"
-    if grep "^overlays=" /boot/armbianEnv.txt; then
-	sed -i "s#^overlays=.*#${OVERLAYS}#" /boot/armbianEnv.txt
-    else
-	echo ${OVERLAYS} >>/boot/armbianEnv.txt
+	echo "***** Configuring Armbian overlays for not Bananapi M4 Zero!!!"
+	OVERLAYS="overlays=spidev1_1"
+	if grep "^overlays=" /boot/armbianEnv.txt; then
+	    sed -i "s#^overlays=.*#${OVERLAYS}#" /boot/armbianEnv.txt
+	else
+	    echo ${OVERLAYS} >>/boot/armbianEnv.txt
+	fi
     fi
     
-#    if grep "^user_overlays=" /boot/armbianEnv.txt; then
-#	sed -i "s#^user_overlays=.*#user_overlays=sun50i-h616-i2c4-pg.dtbo#" /boot/armbianEnv.txt
-#    else
-#	echo "user_overlays=sun50i-h616-i2c4-pg.dtbo">>/boot/armbianEnv.txt
-#    fi
     echo "==== armbianEnv.txt:"
     cat /boot/armbianEnv.txt
+    echo	
 fi
-
-ls -l /boot
-
-echo "Setting up /boot/handshakes directory, linked to /root/handshakes"
-mkdir -p -m 0777 /boot/handshakes
-ln -s /boot/handshakes /root/handshakes
-
 
 # Debian Image Builder stuff
 EXTLINUXCONF=/boot/extlinux/extlinux.conf
@@ -452,16 +524,11 @@ if [ -f board.txt ]; then
     grep fdtoverlays board.txt
 fi
 
-# set host and dev ID on g_ether, so not random.
-if [ ! -f /etc/modprobe.d/g_ether.conf ]; then
-   echo "--> Setting up g_ether device IDs"
-   echo "options g_ether use_eem=0 host_addr=f0:0d:ba:be:f0:0d dev_addr=58:70:77:6e:79:58" > /etc/modprobe.d/g_ether.conf
-fi
-
 # old network server. set it to ignore wlan0 so wpa-supplicant doesn't fight with pwny
 if [ -d /etc/dhcpcd ]; then
     if ! grep "pwnagotchi additions" /etc/dhcpcd/dhcpcd.conf ; then
-	
+
+	echo "*** Set dhcpcd.conf to ignore wlan0"
 	echo "# pwnagotchi additions" >>/etc/dhcpcd/dhcpcd.conf
 	echo "denyinterfaces wlan0" >>/etc/dhcpcd/dhcpcd.conf
     fi
@@ -470,16 +537,16 @@ fi
 # services do not need to be started by the installation.  First boot will enable them
 #systemctl enable bettercap pwngrid-peer pwnagotchi
 
-echo "* Fixing file permissions"
+echo "* Fixing pwnagotchi and /root file permissions"
 chown -R pwnagotchi:pwnagotchi /home/pwnagotchi
 chmod a+rX /root
+echo "Setting up /boot/handshakes directory, linked to /root/handshakes"
+mkdir -p -m 0777 /boot/handshakes
+ln -s /boot/handshakes /root/handshakes
 
 echo "- Cleaning up caches"
-
 rm -rf /root/go
 rm -rf /root/.cache
 rm -rf /var/cache/apt
 rm -rf /usr/local/src/*
 rm -rf /usr/local/go
-
-echo "==== Woohoo! ===="
