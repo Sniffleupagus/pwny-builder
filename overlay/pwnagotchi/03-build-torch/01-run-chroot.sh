@@ -1,6 +1,7 @@
 #!/bin/bash -e
 
 echo "*=*=---*> Torch and Torchvision"
+apt-get install -y python3-pip
 
 pushd /tmp
 if pip3 download --no-deps torchvision ; then
