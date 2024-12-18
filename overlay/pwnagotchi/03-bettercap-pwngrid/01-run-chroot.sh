@@ -3,6 +3,7 @@
 export PATH=$PATH:/usr/local/go/bin
 
 INCOMING=$(pwd)/incoming
+echo "Incoming is ${INCOMING}"
 
 FOUNDARCH="armv6l"
 if [ $(uname -m) = "armv6l" -o $(uname -m) = "armv7l" ]; then
@@ -41,9 +42,9 @@ for pkg in ${go_pkgs}; do
     echo " --> Checking for $pkg"
     if [ -f  ${ROOTFS_DIR}/usr/local/bin/$pkg ] ; then
 	ls -l  ${ROOTFS_DIR}/usr/local/bin/$pkg
-    elif [ -f /tmp/overlay/pwnagotchi/files/${BOARD}/usr/local/bin/$pkg ]; then
+    elif [ -f ${PWNY_DIR}/files/${BOARD}/usr/local/bin/$pkg ]; then
 	echo "+-> Installing precompiled $pkg"
-	cp -rp /tmp/overlay/pwnagotchi/files/${BOARD}/usr/local/bin/$pkg /usr/local/bin
+	cp -rp ${PWNY_DIR}/files/${BOARD}/usr/local/bin/$pkg /usr/local/bin
     else
 	pushd ${ROOTFS_DIR}/usr/local/src
 
@@ -67,9 +68,11 @@ for pkg in ${go_pkgs}; do
 	make install
 	popd
 
-	echo "---> backing up $pkg"
-	mkdir -p /tmp/pwny_parts/usr/local/bin
-	cp /usr/local/bin/$pkg /tmp/pwny_parts/usr/local/bin
+	if [ -f /usr/local/bin/$pkg ]; then
+	    echo "---> backing up $pkg for next build"
+	    mkdir -p /tmp/pwny_parts/usr/local/bin
+	    cp /usr/local/bin/$pkg /tmp/pwny_parts/usr/local/bin
+	fi
 
 	if [ -d ${INCOMING} ]; then
 	    echo "# Saving binary to incoming files"
@@ -89,7 +92,7 @@ mkdir -p ${BETTERCAP_DIR}
 
 pushd /home/pwnagotchi/git
 
-BCAP_UI_ZIPFILE="/tmp/overlay/pwnagotchi/files/bettercap-ui.zip"
+BCAP_UI_ZIPFILE="${PWNY_DIR}/files/bettercap-ui.zip"
 
 # install latest bettercap/ui release
  
@@ -111,13 +114,19 @@ fi
 #     setting the iface in the caplet is not needed
 # webui can be active during AUTO, too, with no issues
 echo "+++ Installing caplets"
+pushd /tmp
+git clone https://github.com/bettercap/caplets.git
+cd caplets
+sudo make install
+popd
 pushd ${BETTERCAP_DIR}
-/usr/local/bin/bettercap -caplets-path ${ROOTFS_DIR}/${BETTERCAP_DIR} -eval "caplets.update ; quit" || true
+#/usr/local/bin/bettercap -caplets-path ${BETTERCAP_DIR} -eval "caplets.update -iface lo ; quit" || true
 cd caplets
 if [[ -f pwnagotchi-manual.cap ]]; then
     echo "~ Fixing caplets to not change interface, and webui always active:"
     (grep -v "set wifi.interface" pwnagotchi-manual.cap | tee pwnagotchi-auto.cap) || true
     cp pwnagotchi-auto.cap pwnagotchi-manual.cap || true
+    ls -l pwn*
 else
     echo "No caplet to fix"
     ls -l
