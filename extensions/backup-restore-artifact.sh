@@ -42,7 +42,7 @@ function post_customize_image__backup_new_artifacts() {
     if [ -n "$(ls)" ]; then
 	mkdir -p ${PWNY_ARTIFACT_DEST}
 	for f in  ${SDCARD}/${PWNY_ARTIFACT_ROOT}/* ; do
-	    cp -rp $f ${PWNY_ARTIFACT_DEST}/$(basename f) || true
+	    cp -rp ${f} ${PWNY_ARTIFACT_DEST}/$(basename ${f}) || true
 	done
     fi
 
