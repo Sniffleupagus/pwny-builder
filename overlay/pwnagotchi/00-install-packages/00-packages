@@ -17,6 +17,8 @@ fonts-freefont-ttf
 g++
 gawk
 git
+gpsd
+gpsd-tools
 libatlas-base-dev
 libavcodec59
 libavformat59
