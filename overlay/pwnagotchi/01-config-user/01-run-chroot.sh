@@ -2,16 +2,15 @@
 
 echo "* Creating user pwnagotchi"
 
-ls -l /tmp/overlay
-
 PUSER=pwnagotchi
 PHOME=/home/${PUSER}
+PVENV=${PHOME}/.venv
 PGROUPS=adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,render,netdev,i2c
 
 useradd -c "Pwnagotchi" -p $(echo pwny1234 | openssl passwd -1 -stdin) -G ${PGROUPS} -d ${PHOME} -m ${PUSER} -k /etc/skel -s /bin/bash
 
 if ! grep "pwnagotchi addons" ${PHOME}/.bashrc ; then
-    echo "* Adding pwnagotchi aliases to .bashrc"
+    echo "\-> Adding pwnagotchi aliases to .bashrc"
     cat >>${PHOME}/.bashrc <<EOF
 
 # pwnagotchi addons
@@ -24,7 +23,7 @@ alias pwnd_daily="ls ${PWND_LSFLAGS} /root/handshakes/*.pcap | cut -c 33-39 | un
 # handshakes captured today
 alias pwnd_today='ls -ltrcd /root/handshakes/*|  grep "\$(date +'\''%b %_d'\'')"'
 
-# 
+# show pwnagotchi cpu usage per epoch
 alias pwncpu="grep -a '\[epoch' /var/log/pwnagotchi.log  | cut -d ' ' -f 23 | sort -n -k1.5 | uniq -c"
 alias pwncpu100="grep -a '\[epoch' /var/log/pwnagotchi.log | tail -100 | cut -d ' ' -f 23 | sort -n -k1.5 | uniq -c"
 
@@ -35,12 +34,17 @@ alias pwnkill='sudo killall -USR1 pwnagotchi'
 alias pwnver='python3 -c \"import pwnagotchi as p; print(p.__version__)\"'
 alias pwnlog='tail -f -n300 /var/log/pwn*.log | sed --unbuffered \"s/,[[:digit:]]\\{3\\}\\]//g\" | cut -d \" \" -f 2-'
 
-PATH=${PATH}:/sbin:/usr/sbin:/usr/local/sbin
+alias dtcbs='dtc -I dtb -O dts'
+alias dtcsb='dtc -O dts -O dtb'
+
+PATH=${PATH}:/sbin:/usr/sbin:/usr/local/sbin:${HOME}/bin
 EOF
 
 fi
 
-echo "Set up venv"
+ls -a ${PHOME}
 
-python3 -m venv /home/${PUSER}/.venv
-sed -i -e 's/include-system-site-packages.*=.*false/include-system-site-packages = true/' /home/${PUSER}/.venv/pyvenv.cfg
+echo "+++ Set up venv in ${PVENV}"
+
+python3 -m venv ${PVENV}
+sed -i -e 's/include-system-site-packages.*=.*false/include-system-site-packages = true/' ${PVENV}/pyvenv.cfg
