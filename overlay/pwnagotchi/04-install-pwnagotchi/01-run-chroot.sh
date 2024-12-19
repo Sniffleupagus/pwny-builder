@@ -199,6 +199,11 @@ installPlugins https://github.com/V0r-T3x/Fancygotchi.git
 echo "++> FancyGotchi 2.0 themes"
 installPlugins https://github.com/V0r-T3x/Fancygotchi_themes.git Fancygotchi_themes fancygotchi_2.0 themes
 
+pushd /home/pwnagotchi/git/Fancygotchi
+mkdir -p themes
+cp -rp /home/pwnagotchi/git/Fancygotchi_themes/fancygotchi_2.0/themes/* themes/
+popd
+
 echo "--> Wardriver"
 installPlugins https://github.com/cyberartemio/wardriver-pwnagotchi-plugin.git wardriver-pwnagotchi-plugin "" 'wardriver.py wardriver_assets'
 
@@ -262,29 +267,44 @@ ui.web.username = "pwny"
 ui.web.password = "pwny1234"
 ui.display.enabled = true
 ui.display.type = "${mydisplay}"
+
 main.custom_plugins = "/usr/local/share/pwnagotchi/custom-plugins"
-main.plugins.led.enabled = false
-main.plugins.auto-update.enabled = false
-main.plugins.morse_code.enabled = true
-main.plugins.morse_code.led = "/sys/class/leds/red:status/brightness"
+bettercap.handshakes = "/boot/handshakes/"
+
+main.whitelist = [
+	       "01:02:03:04:05:06"
+        ]
+
 personality.deauth = ${mydeauth}
 personality.throttle_a = 0.3
 personality.throttle_d = 0.9
 personality.deauth_prob = 0.2
 personality.assoc_prob = 0.9
 
-bettercap.handshakes = "/boot/handshakes/"
+ai.enabled = false
+main.plugins.auto_tune.enabled = true
+
+main.plugins.auto-update.enabled = false
+main.plugins.morse_code.enabled = true
+main.plugins.morse_code.led = "/sys/class/leds/red:status/brightness"
+
 
 ui.backgroundcolor="#ffffff"
 ui.foregroundcolor="#000000"
 ui.colormode="RGB"
-main.whitelist = [
-	       "01:02:03:04:05:06"
-        ]
 
 main.plugins.IPDisplay.enabled = true
-main.plugins.auto_tune.enabled = true
-ai.enabled = false
+
+main.plugins.enable_assoc.enabled = true
+main.plugins.enable_deauth.enabled = false
+main.plugins.enable_deauth.behave_list = [ "my_home_network", "turns_off_deauths", "while_it_sees_these_nets" ]
+
+main.plugins.memtemp.enabled = true
+main.plugins.memtemp.scale = "celsius"
+main.plugins.memtemp.orientation = "vertical"
+main.plugins.memtemp.fields = "mem,cpu,temp,cpus"
+
+main.plugins.tweak_view.enabled = true
 
 main.plugins.ups_hat_c.enabled = false
 main.plugins.ups_hat_c.label_on = true
@@ -473,13 +493,13 @@ EOF
 
 	cat >>/boot/armbianEnv.txt <<EOF
 # BananaPi M4 Zero V1
-# overlays=bananapi-m4-pg-15-16-i2c4 bananapi-m4-spi1-cs1-spidev bananapi-m4-pg-6-7-uart1
+overlays=bananapi-m4-pg-15-16-i2c4 bananapi-m4-spi1-cs1-spidev bananapi-m4-pg-6-7-uart1
 # BananaPi M4 Zero V2
-overlays=bananapi-m4-sdio-wifi-bt bananapi-m4-pi-5-6-i2c0 bananapi-m4-spi1-cs1-spidev bananapi-m4-pi-13-14-uart4
+# overlays=bananapi-m4-sdio-wifi-bt bananapi-m4-pi-5-6-i2c0 bananapi-m4-spi1-cs1-spidev bananapi-m4-pi-13-14-uart4
 EOF
 
 	echo "*-- Bananapim4zero - Selecting RTW88 Drivers"
-	cat >/etc/modprobe.d/blacklist-bananapim4zero <<EOF
+	cat >/etc/modprobe.d/blacklist-bananapim4zero.conf <<EOF
 #
 # rtw88 drivers work better than 8821cu for pwnagotchi
 #
