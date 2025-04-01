@@ -1,5 +1,7 @@
 #!/bin/bash -e
 
+# debian image builder
+
 run_function0 (){
     echo "============ Function 0"
     # if this is in the chroot, so build the pwny
@@ -46,15 +48,21 @@ run_function2 (){
     cd ${0%/*}
     ls -l userscripts/
 
+    export PWNY_DIR="$(pwd)/userscripts"
+
     printenv 
 
-    apt-get -y --allow-releaseinfo-change update
-    apt-get -y upgrade
+    echo "+++ Installing linux headers"
+    dpkg -i /root/linux-*.deb
+
+    echo "+++ apt update"
+    apt-get -yq --allow-releaseinfo-change update
+    apt-get -yq upgrade
     
     pushd userscripts
     for p in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
-	echo "+ Installing apt packages $p"
-	apt-get -y install $(cat ${p})
+	echo "+ Installing $(wc -l $p) apt packages $p"
+	apt-get -yqq install $(cat ${p})
     done
 
     for s in $(find . -name '[0-9][0-9]-*.sh' | sort -V); do
