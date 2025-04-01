@@ -144,13 +144,19 @@ installPlugins() {
 # - destination: location to link files into, usually the custom plugins directory
 
 echo "++>  Sniffleupagus pwnagotchi_plugins"
-installPlugins https://github.com/Sniffleupagus/pwnagotchi_plugins pwnagotchi_plugins '' '[^T]*'
+installPlugins https://github.com/Sniffleupagus/pwnagotchi_plugins pwnagotchi_plugins
 
 echo "++>  Sniffleupagus pisugar3 plugin"
 installPlugins https://github.com/Sniffleupagus/pwnagotchi-plugin-pisugar3
 
+echo "++>  Sniffleupagus pwn-gpsd"
+installPlugins https://github.com/Sniffleupagus/pwn-gpsd.git pwn-gpsd '' peer_map.py
+
 echo "++> GPSD-easy"
 installPlugins https://github.com/rai68/gpsd-easy.git
+
+echo "++> Xentrify iPhone GPS"
+installPlugins https://github.com/xentrify/custom-pwnagotchi-plugins.git xentrify-plugins '' iphone_gps.py
 
 echo "++> NeonLightning plugins"
 installPlugins https://github.com/NeonLightning/pwny.git neonlightning-plugins
@@ -219,8 +225,8 @@ Description=WallofFlippers - A simple and easy way to find Flipper Zero Devices 
 [Service]
 ExecStart=/root/Wall-of-Flippers/.venv/bin/python /root/Wall-of-Flippers/WallofFlippers.py --no-ui wof -d 0
 WorkingDirectory=/root/Wall-of-Flippers/
-StandardOutput=syslog
-StandardError=syslog
+StandardOutput=journal
+StandardError=journal
 SyslogIdentifier=wof
 User=root
 Group=root
@@ -230,7 +236,9 @@ Environment="PYTHONUNBUFFERED=1"
 WantedBy=multi-user.target
 EOF
 
-systemctl enable wof.service
+# disabled for now. V2 boards do not have working bluetooth yet, V1 cannot pair while wof is going
+# enable it through wof plugin webui
+#systemctl enable wof.service
 
 echo "--> --> Wall-of-Flippers plugin"
 installPlugins https://github.com/cyberartemio/wof-pwnagotchi-plugin.git wof-pwnagotchi-plugin '' 'wof.py wof_assets'
@@ -272,8 +280,9 @@ main.custom_plugins = "/usr/local/share/pwnagotchi/custom-plugins"
 bettercap.handshakes = "/boot/handshakes/"
 
 main.whitelist = [
-	       "01:02:03:04:05:06"
-        ]
+  "Example_SSID",
+  "01:02:03:04:05:06"
+]
 
 personality.deauth = ${mydeauth}
 personality.throttle_a = 0.3
@@ -285,6 +294,7 @@ ai.enabled = false
 main.plugins.auto_tune.enabled = true
 
 main.plugins.auto-update.enabled = false
+main.plugins.led.enabled = false
 main.plugins.morse_code.enabled = true
 main.plugins.morse_code.led = "/sys/class/leds/red:status/brightness"
 
@@ -429,10 +439,10 @@ EOC
     echo "ok"
 fi
 
-if ! grep "g_ether" /etc/modules; then
+if ! grep "g_cdc" /etc/modules; then
     # if g_ether isn't set up in /boot/config.txt (raspberry pi)
     # add it to /etc/modules (armbian, debian-image-builder)
-    echo "g_ether" >>/etc/modules
+    echo "g_cdc" >>/etc/modules
 fi
 
 if [ -f /boot/bananapiEnv.txt ]; then
@@ -449,44 +459,7 @@ if [ -f /boot/armbianEnv.txt ]; then
 
     if [[ "$BOARD" == "bananapim4zero" ]]; then
 	echo "+-=-=- Configure bananapim4zero DTB hacks"
-	pushd /boot/dtb/allwinner
-
-	cd overlay
-
-	if [ ! -f sun50i-h616-bananapi-m4-pg-6-7-uart1.dtbo ]; then
-	    echo "+++ Creating PG-6-7 UART1 enable overlay (/dev/ttyS1)"
-	    dtc -I dts -O dtb -o sun50i-h616-bananapi-m4-pg-6-7-uart1.dtbo <<EOF
-/dts-v1/;
-/plugin/;
-/ {
-	fragment@0 {
-		target = <&uart1>;
-		__overlay__ {
-			status = "okay";
-		};
-	};
-};
-EOF
-	fi
-	if [ ! -f sun50i-h616-bananapi-m4-pg-8-9-rts-cts-uart1.dtbo ]; then
-	    echo "+++ Creating PG-6-7 UART1 enable overlay (/dev/ttyS1)"
-	    dtc -I dts -O dtb -o sun50i-h616-bananapi-m4-pg-8-9-rts-cts-uart1.dtbo <<EOF
-/dts-v1/;
-/plugin/;
-/ {
-	fragment@0 {
-		target = <&uart1>;
-		__overlay__ {
-			status = "okay";
-			pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
-			pinctrl-names = "default";
-			uart-has-rtscts;
-		};
-	};
-};
-EOF
-	fi
-	popd    
+	pushd /boot/dtb/allwinner  
     
 	echo "*-- Bananapim4zero overlays: ${OL_LIST}"
 	sed -i '/^overlays=.*$/d' /boot/armbianEnv.txt
@@ -555,6 +528,7 @@ if [ -d /etc/dhcpcd ]; then
 fi
 
 # services do not need to be started by the installation.  First boot will enable them
+# after configuring
 #systemctl enable bettercap pwngrid-peer pwnagotchi
 
 echo "* Fixing pwnagotchi and /root file permissions"
