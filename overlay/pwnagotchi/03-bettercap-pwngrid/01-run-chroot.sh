@@ -106,7 +106,7 @@ else
     pushd ${BETTERCAP_DIR}
     curl -OL https://github.com/bettercap/ui/releases/download/v1.3.0/ui.zip
     ls -l
-    unzip ui.zip && rm ui.zip
+    unzip -q ui.zip && rm ui.zip
 fi
 
 # install caplets
