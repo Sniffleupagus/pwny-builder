@@ -34,6 +34,10 @@ function pre_customize_image__restore_prior_artifacts() {
 }
 
 function post_customize_image__backup_new_artifacts() {
+    if [ ! -d ${SDCARD}/${PWNY_ARTIFACT_ROOT} ]; then
+	return
+    fi
+
     pushd ${SDCARD}/${PWNY_ARTIFACT_ROOT}
     find . -type f
     find . -type f | ntfy_send "New artifacts" default package
@@ -42,7 +46,11 @@ function post_customize_image__backup_new_artifacts() {
     if [ -n "$(ls)" ]; then
 	mkdir -p ${PWNY_ARTIFACT_DEST}
 	for f in  ${SDCARD}/${PWNY_ARTIFACT_ROOT}/* ; do
-	    cp -rp ${f} ${PWNY_ARTIFACT_DEST}/$(basename ${f}) || true
+	    if [ -d ${f} ]; then
+		cp -rp ${f}/* ${PWNY_ARTIFACT_DEST}/$(basename ${f})/ || true
+	    else
+		cp -rp ${f} ${PWNY_ARTIFACT_DEST}/$(basename ${f}) || true
+	    fi
 	done
     fi
 
