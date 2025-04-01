@@ -34,10 +34,13 @@ alias pwnkill='sudo killall -USR1 pwnagotchi'
 alias pwnver='python3 -c \"import pwnagotchi as p; print(p.__version__)\"'
 alias pwnlog='tail -f -n300 /var/log/pwn*.log | sed --unbuffered \"s/,[[:digit:]]\\{3\\}\\]//g\" | cut -d \" \" -f 2-'
 
+alias dumpgrid='watch -c "for i in \$(ls -t /root/peers/); do cat /root/peers/\$i | egrep --color=always \"\\\"(name|uptime|seen_at|pwnd)[^,]*\"; echo;  done"'
+
+
 alias dtcbs='dtc -I dtb -O dts'
 alias dtcsb='dtc -O dts -O dtb'
 
-PATH=${PATH}:/sbin:/usr/sbin:/usr/local/sbin:${HOME}/bin
+PATH='$PATH:/sbin:/usr/sbin:/usr/local/sbin:\$HOME/bin'
 EOF
 
 fi
@@ -46,5 +49,4 @@ ls -a ${PHOME}
 
 echo "+++ Set up venv in ${PVENV}"
 
-python3 -m venv ${PVENV}
-sed -i -e 's/include-system-site-packages.*=.*false/include-system-site-packages = true/' ${PVENV}/pyvenv.cfg
+python3 -m venv ${PVENV} --system-site-packages
