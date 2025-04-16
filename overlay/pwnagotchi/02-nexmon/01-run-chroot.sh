@@ -3,7 +3,7 @@
 # install nexmon
 NEXMON_REPO=https://github.com/DrSchottky/nexmon.git
 
-NEXMON_DKMS_REPO=https://gitlab.com/kalilinux/packages/brcmfmac-nexmon-dkms.git
+NEXMON_DKMS_REPO=https://gitlab.com/nursejackass/brcmfmac-nexmon-dkms.git
 
 # raspberry pi defaults
 NEXMON_PATCHES="bcm43430a1/7_45_41_46 bcm43455c0/7_45_206 bcm43436b0/9_88_4_65"
@@ -21,26 +21,26 @@ pushd ${PHOME}/git
 
 BUILT_ONE=false
 
-NEXMON_DKMS_ROOT="${PHOME}/git/brcmfmac-nexmon-dkms"
+NEXMON_DKMS_ROOT="/usr/src/brcmfmac-nexmon-dkms"
+pushd /usr/src
 if [ ! -d brcmfmac-nexmon-dkms ]; then
     git clone ${NEXMON_DKMS_REPO}
+    ln -s brcmfmac-nexmon-dkms brcmfmac-nexmon-dkms-6.6
 fi
-
-# for each kernel with a build directory
-ls /lib/modules
-uname -a
-
-# build DKMS kernel modules
 pushd ${NEXMON_DKMS_ROOT}
+
 if [ -f "/boot/armbianEnv.txt" ]; then
+    echo "Disabling -DDEBUG flag on Armbian"
     sed -i '/-DDEBUG$/s/-DDEBUG/\#-DDEBUG/' Makefile
 fi
+
+# build DKMS kernel modules
 for m in $(cd /lib/modules ; ls); do
     if [ -d /lib/modules/$m/build ]; then
 	mod=$m
 	echo
-	echo ">>>---> building Nexmon for $mod"
-	curl -s -d "build nexmon $mod" ntfy.sh/pwny_builder
+	echo ">>>---> building DKMS Nexmon module for $mod"
+	curl -s -d "build dkms nexmon $mod" ntfy.sh/pwny_builder
 
 	export QEMU_UNAME=$mod
 	export PLATFORMUNAME=$mod
@@ -51,8 +51,12 @@ for m in $(cd /lib/modules ; ls); do
 
 	echo "+ Building DKMS nexmon module for ${mod}"
 	make clean || true
-	make
-	make install
+	#make
+	#make install
+
+	dkms add     -m brcmfmac-nexmon-dkms -v 6.6 -k $mod
+	dkms build   -m brcmfmac-nexmon-dkms -v 6.6 -k $mod
+	dkms install -m brcmfmac-nexmon-dkms -v 6.6 -k $mod --force
     fi
 done
 popd
