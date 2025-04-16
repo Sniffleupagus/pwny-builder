@@ -44,6 +44,10 @@ run_function2 (){
     echo "# parent path -------------->  ${0%/*}  "
     echo "# my name ------------------>  ${0##*/} "
     echo "Building in $(pwd)"
+
+    # figure this out from config somehow
+    export BOARD=bananapim4zero
+
     ls -l ${0%/*}
     cd ${0%/*}
     ls -l userscripts/
@@ -60,14 +64,27 @@ run_function2 (){
     apt-get -yq upgrade
     
     pushd userscripts
-    for p in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
-	echo "+ Installing $(wc -l $p) apt packages $p"
-	apt-get -yqq install $(cat ${p})
+    for s in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
+	if [[ -f $(dirname $s)/SKIP ]]; then
+	    echo "-- SKIPping $s"
+	else
+	    echo "-- Install $(wc -l $s) from $s"
+	    files="${files} $(cat $s)"
+	fi
     done
+    echo "+ Installing apt"
+    echo apt-get -y -q -q install $(echo ${files} | sort -u)
 
     for s in $(find . -name '[0-9][0-9]-*.sh' | sort -V); do
-	echo "-> Running $s"
-	bash -e $s
+	if [[ -f $(dirname $s)/SKIP ]]; then
+	    echo "-- SKIPping $s"
+	elif [[ "$(basename $s)" =~ "-chroosst.sh" ]]; then
+	    echo "-> Running ${STATIC} $s"
+            ${STATIC} -E QEMU_UNAME="6.6.x",STATIC=${STATIC},BOARD=${BOARD} /bin/bash -e $s
+	else
+	    echo "-> Running local $s"
+            STATIC=${STATIC} /bin/bash -e $s
+	fi
     done
     popd
     echo "----- End of function2"
@@ -95,12 +112,15 @@ run_function3 (){
     mount | grep -i loop
 
     # install /etc/rc.local
-    ls p1/home/pwnagotchi/git/pwnagotchi/builder/data/etc || true
+    ls p*/home/pwnagotchi/git/pwnagotchi/builder/data/etc || true
     if [ -f p1/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local ]; then
 	echo "Installing rc.local"
 	cp p1/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local p1/etc/rc.local
+    elif [ -f p2/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local ]; then
+	echo "Installing rc.local"
+	cp p2/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local p2/etc/rc.local
     fi
-    
+
     # install dtb mods    
     for dts in $(cd files/userscripts/files ; find . -name \*.dts); do
 	dtb="p1/boot/$(dirname ${dts})/$(basename ${dts} .dts).dtb"
