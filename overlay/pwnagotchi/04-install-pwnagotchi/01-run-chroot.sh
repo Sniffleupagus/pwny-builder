@@ -199,6 +199,9 @@ index 74a45b9..7ab1061 100644
 EOF
 popd
 
+echo "++> PwnCrack"
+installPlugins https://github.com/Terminatoror/pwncrack-addons pwncrack-addons "" pwncrack.py
+
 echo "++> FancyGotchi"
 installPlugins https://github.com/V0r-T3x/Fancygotchi.git
 
@@ -275,6 +278,7 @@ ui.web.username = "pwny"
 ui.web.password = "pwny1234"
 ui.display.enabled = true
 ui.display.type = "${mydisplay}"
+ui.display.rotation = 0
 
 main.custom_plugins = "/usr/local/share/pwnagotchi/custom-plugins"
 bettercap.handshakes = "/boot/handshakes/"
