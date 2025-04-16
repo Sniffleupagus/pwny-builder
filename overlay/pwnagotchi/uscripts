@@ -22,18 +22,31 @@ run_function1 (){
     echo "Building in $(pwd)"
     echo "Adding FDTOVERLAYS"
     FDTOVERLAYS="fdtoverlays"
-for ol in disable-uart5 gpu pg-i2c4 pg-uart1 ph-i2c1 spi0-spidev spi1-cs1-spidev; do
-    echo "- ${ol}"
-    FDTOVERLAYS="${FDTOVERLAYS} ../allwinner/overlays/sun50i-h616-${ol}.dtbo"
-done
+    for ol in disable-uart5 gpu pg-i2c4 pg-uart1 ph-i2c1 spi0-spidev spi1-cs1-spidev; do
+	echo "- ${ol}"
+	FDTOVERLAYS="${FDTOVERLAYS} ../allwinner/overlays/sun50i-h616-${ol}.dtbo"
+    done
     
-if [ -f board.txt ]; then
-    echo "Adding overlays"
-    sed -i "s#^FDTOVERLAYS=.*#FDTOVERLAYS='${FDTOVERLAYS}'#" board.txt
-    echo "Result:"
-    grep fdtoverlays board.txt
-fi
+    if [ -f board.txt ]; then
+	echo "Adding overlays"
+	sed -i "s#^FDTOVERLAYS=.*#FDTOVERLAYS='${FDTOVERLAYS}'#" board.txt
+	echo "Result:"
+	grep fdtoverlays board.txt
+    fi
 
+    echo "Listing drives:"
+    ls -l p1 p2 || true
+
+    echo
+    echo "Listing old files:"
+    if [ -d p2/tmp ]; then
+	FILEDEST=p2/tmp/overlay/pwnagotchi
+    elif [ -d p1/tmp ]; then
+	FILEDEST=p1/tmp/overlay/pwnagotchi
+    fi
+    mkdir -p ${FILEDEST}
+    cp -rp files/userscripts/files ${FILEDEST}
+    ls -lR ${FILEDEST}
 }
 
 run_function2 (){    
@@ -54,16 +67,22 @@ run_function2 (){
 
     export PWNY_DIR="$(pwd)/userscripts"
 
-    printenv 
+    printenv | cut -c -$(/usr/bin/tput cols)
 
     echo "+++ Installing linux headers"
+    ls -l /lib
+    # install dkms alone, without installing host-OS linux headers
+    apt-get install --no-install-recommends dkms
     dpkg -i /root/linux-*.deb
+    ls -l /lib/modules
 
     echo "+++ apt update"
     apt-get -yq --allow-releaseinfo-change update
     apt-get -yq upgrade
+    ls -l /lib/modules
     
     pushd userscripts
+    files=''
     for s in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
 	if [[ -f $(dirname $s)/SKIP ]]; then
 	    echo "-- SKIPping $s"
@@ -72,15 +91,16 @@ run_function2 (){
 	    files="${files} $(cat $s)"
 	fi
     done
-    echo "+ Installing apt"
-    echo apt-get -y -q -q install $(echo ${files} | sort -u)
+    echo "+ Installing apt packages: $(echo ${files} | sort -u)"
+    apt-get -y -q install $(echo ${files} | sort -u)
 
+    echo "+ Running instll scripts"
     for s in $(find . -name '[0-9][0-9]-*.sh' | sort -V); do
 	if [[ -f $(dirname $s)/SKIP ]]; then
 	    echo "-- SKIPping $s"
-	elif [[ "$(basename $s)" =~ "-chroosst.sh" ]]; then
+	elif [[ "$(basename $s)" =~ "-chroot.sh" ]]; then
 	    echo "-> Running ${STATIC} $s"
-            ${STATIC} -E QEMU_UNAME="6.6.x",STATIC=${STATIC},BOARD=${BOARD} /bin/bash -e $s
+            ${STATIC} -E STATIC=${STATIC},BOARD=${BOARD} /bin/bash -e $s
 	else
 	    echo "-> Running local $s"
             STATIC=${STATIC} /bin/bash -e $s
