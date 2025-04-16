@@ -1,14 +1,26 @@
 #!/bin/bash -e
 
 # install nexmon
-NEXMON_REPO=https://github.com/DrSchottky/nexmon.git
+NEXMON_REPO=https://github.com/Sniffleupagus/nexmon.git
 
 # raspberry pi defaults
 NEXMON_PATCHES="patches/bcm43430a1/7_45_41_46/nexmon patches/bcm43455c0/7_45_206/nexmon patches/bcm43436b0/9_88_4_65/nexmon"
 
-if [ ${BOARD} == "bananapim4zero" ]; then
+if [ "${BOARD}" == "bananapim4zero" ]; then
     NEXMON_PATCHES="patches/bcm43455c0/7_45_206/nexmon"
 fi
+
+if [ ! "${STATIC}" ]; then
+   STATIC="/usr/bin/qemu-aarch64-static"
+fi
+
+echo "------STATIC ${STATIC}"
+echo "------Q_U ${QEMU_UNAME}"
+echo "------ ${OVERLAY_DIRECTORY}"
+echo "------ ${BOARD}"
+uname -a
+QEMU_UNAME=6.69.420 /usr/bin/uname -a
+QEMU_UNAME=6.69.420 ${STATIC} /usr/bin/uname -a
 
 PHOME=/home/pwnagotchi
 
@@ -17,8 +29,8 @@ cd /usr/local/src
 mkdir -p ${PHOME}/git
 pushd ${PHOME}/git
 
-NEXMON_TARFILE="/tmp/overlay/pwnagotchi/files/nexmon.zip"
-NEXMON_URL="https://github.com/DrSchottky/nexmon/archive/refs/heads/dev.zip"
+NEXMON_TARFILE="${OVERLAY_DIRECTORY}/files/nexmon.zip"
+NEXMON_URL="https://github.com/Sniffleupagus/nexmon/archive/refs/heads/dev.zip"
 
 if [ ! -d nexmon ]; then
     if [ -f "${NEXMON_TARFILE}" ]; then
@@ -51,14 +63,14 @@ BUILT_ONE=false
 if [ -f "/boot/armbianEnv.txt" ]; then
     # -DDEBUG in the driver does not compile on armbian
     echo "* --> Removing -DDEBUG from driver Makefile"
-    pushd patches/driver/brcmfmac_6.6.y-nexmon
-    sed -i '/-DDEBUG$/d' Makefile
-    sed -i 's/include \\$/include/' Makefile
+    pushd patches/driver/brcmfmac_6.12.y-nexmon
+ #   sed -i '/-DDEBUG$/d' Makefile
+ #   sed -i 's/include \\$/include/' Makefile
     popd
 fi
 
 source setup_env.sh
-make
+QEMU_UNAME=6.12.5 ${STATIC} /usr/bin/make
 
 if [ ! -f /usr/bin/nexutil ]; then
     pushd utilities/nexutil
@@ -70,19 +82,40 @@ if [ ! -f /usr/bin/nexutil ]; then
     cp /usr/bin/nexutil /tmp/pwny_parts/usr/bin
 fi
 
+#echo "+++++ linking 6.12 to 6.6"
+#pushd patches/driver
+#cp -rp brcmfmac_6.6.y-nexmon brcmfmac_6.12.y-nexmon
+#cd brcmfmac_6.12.y-nexmon
+#sed -i.bak -e 's/6\.6\.y/6.12.y/g' Makefile
+#sed -i.bak -e 's#asm/unaligned.h#linux/unaligned.h#' fweh.h xtlv.c p2p.c pcie.c sdio.c
+#echo "Still need to fix a couple of beacon pointers that changed"
+#echo "And strip DEBUG on armbian"
+#popd
+
 # for each kernel with a build directory
 ls /lib/modules
-uname -a
+/usr/bin/uname -a
+exit
 
-for mod in $(cd /lib/modules ; ls); do
+for mod in $(cd /lib/modules ; ls ); do
 
     if [ -d /lib/modules/$mod/build ]; then
 	echo
-	echo ">>>---> building Nexmon for $mod"
+	echo ">>>---> building Nexmon for $mod ${STATIC}"
 
-	export QEMU_UNAME=$mod
-	export PLATFORMUNAME=$mod
-	uname -a
+	kernel_ver=$(echo $mod | cut -d - -f 1)
+	export QEMU_UNAME=${kernel_ver}
+	export PLATFORMUNAME="aarch64"
+	echo '============================'
+	/usr/bin/uname -a
+	QEMU_UNAME=${mod} /usr/bin/uname -a
+	QEMU_UNAME=${kernel_ver} /usr/bin/uname -a
+	echo "QEMU_UNAME=${mod} ${STATIC} /usr/bin/uname -a"
+	QEMU_UNAME=${mod} ${STATIC} /usr/bin/uname -a
+	QEMU_UNAME=${kernel_ver} ${STATIC} /usr/bin/uname -a
+	QEMU_UNAME=6.69.420 ${STATIC} /usr/bin/uname -a
+	echo '============================'
+	sleep 5
 
 	export KERNEL=$(echo $mod | cut -d . -f -2)
 	MOD_DEST=/lib/modules/${mod}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac
@@ -93,18 +126,23 @@ for mod in $(cd /lib/modules ; ls); do
 	    for p in $NEXMON_PATCHES; do
 		echo "    ===---> clean $mod patch $p"
 		pushd $p
-		make clean || true
+		QEMU_UNAME=${kernel_ver} /usr/bin/make clean || true
+		#QEMU_UNAME=${kernel_ver} ${STATIC} /usr/bin/make clean || true
 		popd
 	    done
 
 	    for p in $NEXMON_PATCHES; do
-		echo "    ===--->  build $mod patch $p"
+		echo "    ===---> ${STATIC} build $mod patch $p"
 		pushd $p
-		make
-		echo "    ===+++>  install $mod patch $p"
+		/usr/bin/uname -r
+		QEMU_UNAME=${kernel_ver} /usr/bin/uname -r
+		QEMU_UNAME=${kernel_ver} /usr/bin/make
+		#QEMU_UNAME=${kernel_ver} ${STATIC} /usr/bin/make
+		echo "    ===+++>  install $mod patch $p $(uname -a)"
 		# use invalid kernel number so install-firmware
 		# skips module unloading and loading
-		QEMU_UNAME=4.20.69 make install-firmware || true
+		QEMU_UNAME=4.20.69 /usr/bin/make install-firmware || true
+		#QEMU_UNAME=4.20.69 ${STATIC} /usr/bin/make install-firmware || true
 		BUILT_ONE=true
 		popd
 	    done
@@ -150,7 +188,6 @@ for mod in $(cd /lib/modules ; ls); do
 	else
 	    echo -n "-=> Already installed ${mod}"
 	fi
-	
     else
 	echo
 	echo "=== NO Kernel build tree for  $mod ==="
@@ -158,7 +195,7 @@ for mod in $(cd /lib/modules ; ls); do
     fi
 done
 
-if [ ${BOARD} == "bananapim4zero" ]; then
+if [ "${BOARD}" == "bananapim4zero" ]; then
     echo "Finished building nexmon"
     pushd /usr/lib/firmware
     if [ ! -f  updates/brcm/cyfmac43455-sdio.bin.ORIG ]; then

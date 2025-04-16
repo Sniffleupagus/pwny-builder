@@ -41,9 +41,9 @@ for pkg in ${go_pkgs}; do
     echo " --> Checking for $pkg"
     if [ -f  ${ROOTFS_DIR}/usr/local/bin/$pkg ] ; then
 	ls -l  ${ROOTFS_DIR}/usr/local/bin/$pkg
-    elif [ -f /tmp/overlay/pwnagotchi/files/${BOARD}/usr/local/bin/$pkg ]; then
+    elif [ -f ${OVERLAY_DIRECTORY}/files/${BOARD}/usr/local/bin/$pkg ]; then
 	echo "+-> Installing precompiled $pkg"
-	cp -rp /tmp/overlay/pwnagotchi/files/${BOARD}/usr/local/bin/$pkg /usr/local/bin
+	cp -rp ${OVERLAY_DIRECTORY}/files/${BOARD}/usr/local/bin/$pkg /usr/local/bin
     else
 	pushd ${ROOTFS_DIR}/usr/local/src
 
@@ -89,7 +89,7 @@ mkdir -p ${BETTERCAP_DIR}
 
 pushd /home/pwnagotchi/git
 
-BCAP_UI_ZIPFILE="/tmp/overlay/pwnagotchi/files/bettercap-ui.zip"
+BCAP_UI_ZIPFILE="${OVERLAY_DIRECTORY}/files/bettercap-ui.zip"
 
 # install latest bettercap/ui release
  

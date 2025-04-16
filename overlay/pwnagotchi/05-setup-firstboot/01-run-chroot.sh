@@ -35,8 +35,8 @@ hostname_current=$(cat /etc/hostname)
 hostname_new=${hostname_current//pi/pwn}
 
 # disable /var/log/syslog because it fills up zram. use journalctl instead
-systemctl stop rsyslog syslog.socket
-systemctl disable rsyslog syslog.socket
+#systemctl stop rsyslog syslog.socket
+#systemctl disable rsyslog syslog.socket
 
 # usb_modeswitch config for a couple of dongles I have that are not included
 # usbmodeswitch for a69c:5721

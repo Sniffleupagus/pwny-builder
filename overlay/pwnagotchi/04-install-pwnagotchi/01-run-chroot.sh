@@ -91,9 +91,9 @@ pushd builder/data
     if [[ "${BOARD}" == "bananapim4zero" ]]; then
 	echo "Setting up RNDIS on usb0 for ${BOARD}"
 	cd /etc/network/interfaces.d
-	# doesn't need this anymore. second port shows up as usb0
-	#mv usb0-cfg usb1-cfg
-	#sed -i 's/usb0/usb1/g' usb1-cfg
+	# doesn't need this anymore. second port shows up as usb0 on Armbian, but usb1 on DIB
+	mv usb0-cfg usb1-cfg
+	sed -i 's/usb0/usb1/g' usb1-cfg
     else
 	echo "WRONG BOARD, but Setting up RNDIS on usb1 anyways"
 	cd /etc/network/interfaces.d
@@ -102,6 +102,11 @@ pushd builder/data
     sleep 10
     ls -l
     if [ -d boot -a -f /boot/extlinux/extlinux.conf ]; then
+	cd /etc/network/interfaces.d
+	# doesn't need this anymore. second port shows up as usb0 on Armbian, but usb1 on DIB
+	mv usb0-cfg usb1-cfg
+	sed -i 's/usb0/usb1/g' usb1-cfg
+
 	for dts in $(find boot -name \*.dts); do
 	    dtb="/$(dirname ${dts})/$(basename ${dts} .dts).dtb"
 	    mkdir -p "$(dirname ${dtb})"
@@ -257,7 +262,7 @@ personality.throttle_d = 0.9
 personality.deauth_prob = 0.2
 personality.assoc_prob = 0.9
 
-bettercap.handshakes = "/boot/handshakes/"
+bettercap.handshakes = "/root/handshakes/"
 
 ui.backgroundcolor="#ffffff"
 ui.foregroundcolor="#000000"
@@ -425,25 +430,30 @@ fi
 
 ls -l /boot
 
-echo "Setting up /boot/handshakes directory, linked to /root/handshakes"
-mkdir -p -m 0777 /boot/handshakes
-ln -s /boot/handshakes /root/handshakes
+#echo "Setting up /boot/handshakes directory, linked to /root/handshakes"
+#mkdir -p -m 0777 /boot/handshakes
+#ln -s /boot/handshakes /root/handshakes
+echo "Setting up /root/handshakes"
+mkdir -p -m 0777 /root/handshakes
 
 
 # Debian Image Builder stuff
 EXTLINUXCONF=/boot/extlinux/extlinux.conf
 if [ -f ${EXTLINUXCONF} ]; then
     echo "===-----> Configuring extlinux overlays:"
-    FDTOVERLAYS="fdtoverlays"
-    for ol in disable-uart0 gpu pg-i2c4 pg-uart1 ph-i2c1 spi0-spidev spi1-cs1-spidev; do
-	echo "- ${ol}"
-	FDTOVERLAYS="${FDTOVERLAYS} ../allwinner/overlays/sun50i-h616-${ol}.dtbo"
-    done
-    
-    sed -i -e "s#\#fdtoverlays#${FDTOVERLAYS}#" ${EXTLINUXCONF}
-    sed -i -e 's/console=ttyS0[^ ]//' ${EXTLINUXCONF}
-    echo "Result:"
-    grep fdtoverlays ${EXTLINUXCONF}
+    # use predictable network names
+    sed -i -e 's/net.ifnames=0 //' ${EXTLINUXCONF}
+    sed -i -e '/^#fdtoverlays /d' ${EXTLINUXCONF}
+    cat >>${EXTLINUXCONF} <<EOF
+        # BANANA PI M4 ZERO V1
+        #fdtoverlays ../allwinner/overlays/sunxi-h616-pg-15-16-i2c4.dtbo ../allwinner/overlays/sunxi-h616-spi1-cs1-spidev.dtbo ../allwinner/overlays/sunxi-h616-pg-6-7-uart1.dtbo
+        # BANANA PI M4 ZERO V2
+        fdtoverlays ../allwinner/overlays/sunxi-h618-bananapi-m4-sdio-wifi-bt.dtbo ../allwinner/overlays/sunxi-h616-pi-5-6-i2c0.dtbo ../allwinner/overlays/sunxi-h616-spi1-cs1-spidev.dtbo ../allwinner/overlays/sunxi-h616-pi-13-14-uart4.dtbo
+EOF
+
+	
+    echo "=========== Result:"
+    cat ${EXTLINUXCONF}
 fi
 if [ -f board.txt ]; then
     echo "====------> Adding overlays to board.txt"

@@ -27,7 +27,7 @@ done
     
 if [ -f board.txt ]; then
     echo "Adding overlays"
-    sed -i "s#^FDTOVERLAYS=.*#FDTOVERLAYS='${FDTOVERLAYS}'#" board.txt
+    #sed -i "s#^FDTOVERLAYS=.*#FDTOVERLAYS='${FDTOVERLAYS}'#" board.txt
     echo "Result:"
     grep fdtoverlays board.txt
 fi
@@ -41,25 +41,54 @@ run_function2 (){
     echo "# path to me --------------->  ${0}     "
     echo "# parent path -------------->  ${0%/*}  "
     echo "# my name ------------------>  ${0##*/} "
+    echo "Plain: $(uname -a)"
+    echo "QEMU_UNAME: $(QEMU_UNAME=6.69.420 uname -a)"
+    echo "QEMU_UNAME ${STATIC}: $(QEMU_UNAME=6.69.420 ${STATIC} /usr/bin/uname -a)"
+    
     echo "Building in $(pwd)"
+    export BOARD=bananapim4zero
     ls -l ${0%/*}
     cd ${0%/*}
+    export OVERLAY_DIRECTORY=$(pwd)/userscripts
     ls -l userscripts/
 
-    printenv 
+    export PWNY_DIR=$(pwd)/userscripts
+
+    printenv
+
+    echo "+++ Installing linux headers"
+    dpkg -i /root/linux-*.deb
 
     apt-get -y --allow-releaseinfo-change update
     apt-get -y upgrade
     
     pushd userscripts
-    for p in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
-	echo "+ Installing apt packages $p"
-	apt-get -y install $(cat ${p})
+    #for p in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
+    files=""
+    for s in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
+	if [[ -f $(dirname $s)/SKIP ]]; then
+	    echo "-- SKIPping $s"
+	else
+	    echo "-- Install $(wc -l $s) from $s"
+	    files="${files} $(cat $s)"
+	fi
     done
+	
+    echo "+ Installing apt"
+    echo apt-get -y -q -q install $(echo ${files} | sort -u)
+
+    apt-get -y -q -q install $(echo ${files} | sort -u)
 
     for s in $(find . -name '[0-9][0-9]-*.sh' | sort -V); do
-	echo "-> Running $s"
-	bash -e $s
+	if [[ -f $(dirname $s)/SKIP ]]; then
+	    echo "-- SKIPping $s"
+	elif [[ "$(basename $s)" =~ "-chroosst.sh" ]]; then
+	    echo "-> Running ${STATIC} $s"
+            ${STATIC} -E QEMU_UNAME="6.6.x",OVERLAY_DIRECTORY=${OVERLAY_DIRECTORY},STATIC=${STATIC},BOARD=${BOARD} /bin/bash -e $s
+	else
+	    echo "-> Running local $s"
+            STATIC=${STATIC} OVERLAY_DIRECTORY=${OVERLAY_DIRECTORY} /bin/bash -e $s
+	fi
     done
     popd
     echo "----- End of function2"
@@ -77,25 +106,26 @@ run_function3 (){
     echo Environment
     printenv
     for d in p1 p1/boot output/* files; do
-	echo "Listing ${d}"
-	ls -l $d
+	if [ -d $d ]; then
+	    echo "Listing ${d}"
+	    ls -l $d || true
+	fi
     done
     echo
-    ls -lR p1/boot
     echo "Listing mounts"
     losetup -l
     mount | grep -i loop
 
     # install /etc/rc.local
-    ls p1/home/pwnagotchi/git/pwnagotchi/builder/data/etc || true
-    if [ -f p1/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local ]; then
+    ls p2/home/pwnagotchi/git/pwnagotchi/builder/data/etc || true
+    if [ -f p2/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local ]; then
 	echo "Installing rc.local"
-	cp p1/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local p1/etc/rc.local
+	cp p2/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local p2/etc/rc.local
     fi
     
     # install dtb mods    
-    for dts in $(cd files/userscripts/files ; find . -name \*.dts); do
-	dtb="p1/boot/$(dirname ${dts})/$(basename ${dts} .dts).dtb"
+    for dts in $(cd files/userscripts/filesNONONO ; find . -name \*.dts); do
+	dtb="p1/$(dirname ${dts})/$(basename ${dts} .dts).dtb"
 	if [[ "${dts}" = *"/overlays/"* ]]; then
 	    dtb=${dtb}o
 	fi
@@ -108,7 +138,7 @@ run_function3 (){
 	    
 	/usr/bin/dtc -I dts -O dtb -o "${dtb}" "files/userscripts/files/${dts}" || true
     done
-    ls -lR p1/boot/allwinner
+    ls -lR p1
     
 }
 
