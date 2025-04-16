@@ -125,6 +125,13 @@ cd caplets
 if [[ -f pwnagotchi-manual.cap ]]; then
     echo "~ Fixing caplets to not change interface, and webui always active:"
     (grep -v "set wifi.interface" pwnagotchi-manual.cap | tee pwnagotchi-auto.cap) || true
+
+    cat >>pwnagotchi-auto.cap <<EOF
+
+set wifi.handshakes.file /boot/handshakes
+set wifi.handshakes.aggregate false
+EOF
+
     cp pwnagotchi-auto.cap pwnagotchi-manual.cap || true
     ls -l pwn*
 else
