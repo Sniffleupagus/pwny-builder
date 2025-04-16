@@ -281,7 +281,7 @@ ui.display.type = "${mydisplay}"
 ui.display.rotation = 0
 
 main.custom_plugins = "/usr/local/share/pwnagotchi/custom-plugins"
-bettercap.handshakes = "/boot/handshakes/"
+bettercap.handshakes = "/root/handshakes/"
 
 main.whitelist = [
   "Example_SSID",
@@ -502,18 +502,27 @@ fi
 # Debian Image Builder stuff
 EXTLINUXCONF=/boot/extlinux/extlinux.conf
 if [ -f ${EXTLINUXCONF} ]; then
-    echo "===-----> Configuring extlinux overlays:"
-    FDTOVERLAYS="fdtoverlays"
-    for ol in disable-uart0 gpu pg-i2c4 pg-uart1 ph-i2c1 spi0-spidev spi1-cs1-spidev; do
-	echo "- ${ol}"
-	FDTOVERLAYS="${FDTOVERLAYS} ../allwinner/overlays/sun50i-h616-${ol}.dtbo"
-    done
-    
-    sed -i -e "s#\#fdtoverlays#${FDTOVERLAYS}#" ${EXTLINUXCONF}
+    echo "Use Predictable network names"
+    sed -i -e 's/net.ifnames=0 //' ${EXTLINUXCONF}
+
+    sed -i -e '/^#fdtoverlays /d' ${EXTLINUXCONF}
+    cat >>${EXTLINUXCONF} <<EOF
+        # BANANA PI M4 ZERO V1
+        #fdtoverlays ../allwinner/overlays/sunxi-h616-pg-15-16-i2c4.dtbo ../allwinner/overlays/sunxi-h616-spi1-cs1-spidev.dtbo ../allwinner/overlays/sunxi-h616-pg-6-7-uart1.dtbo
+        # BANANA PI M4 ZERO V2
+        fdtoverlays ../allwinner/overlays/sunxi-h618-bananapi-m4-sdio-wifi-bt.dtbo ../allwinner/overlays/sunxi-h616-pi-5-6-i2c0.dtbo ../allwinner/overlays/sunxi-h616-spi1-cs1-spidev.dtbo ../allwinner/overlays/sunxi-h616-pi-13-14-uart4.dtbo
+EOF
+
     sed -i -e 's/console=ttyS0[^ ]//' ${EXTLINUXCONF}
     echo "Result:"
     grep fdtoverlays ${EXTLINUXCONF}
+
+    cd /etc/network/interfaces.d
+    # second port shows up as usb0 on Armbian, but usb1 on DIB
+    mv usb0-cfg usb1-cfg
+    sed -i 's/usb0/usb1/g' usb1-cfg
 fi
+
 if [ -f board.txt ]; then
     echo "====------> Adding overlays to board.txt"
     sed -i "s#^FDTOVERLAYS=.*#FDTOVERLAYS='${FDTOVERLAYS}'#" board.txt
@@ -539,8 +548,8 @@ echo "* Fixing pwnagotchi and /root file permissions"
 chown -R pwnagotchi:pwnagotchi /home/pwnagotchi
 chmod a+rX /root
 echo "Setting up /boot/handshakes directory, linked to /root/handshakes"
-mkdir -p -m 0777 /boot/handshakes
-ln -s /boot/handshakes /root/handshakes
+mkdir -p -m 0777 /root/handshakes
+#ln -s /boot/handshakes /root/handshakes
 
 echo "- Cleaning up caches"
 rm -rf /root/go
