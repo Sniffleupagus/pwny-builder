@@ -29,7 +29,7 @@ if [ ! -d brcmfmac-nexmon-dkms ]; then
 fi
 pushd ${NEXMON_DKMS_ROOT}
 
-if [ -f "/boot/armbianEnv.txt" ]; then
+if [ -f "/boot/armbianEnv.txt" -o -f "/boot/extlinux/extlinux.conf" ]; then
     echo "Disabling -DDEBUG flag on Armbian"
     sed -i '/-DDEBUG$/s/-DDEBUG/\#-DDEBUG/' Makefile
 fi
