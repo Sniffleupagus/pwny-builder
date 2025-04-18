@@ -3,8 +3,8 @@
 #
 # been a while since I made a makefile
 
-ARMBIAN_VERSION=25.05.0
-KERNEL_VERSION=6.6.75
+ARMBIAN_VERSION=$(shell cat builders/armbian-build/VERSION)
+KERNEL_VERSION=$(shell grep -A2 'current)'  builders/armbian-build/config/sources/families/include/sunxi64_common.inc  | grep KERNELBRANCH | cut -d '"' -f 2 | cut -d v -f 2)
 OUTPUT_IMAGE=output/images/Armbian-unofficial_$(ARMBIAN_VERSION)-trunk_Bananapim4zero_bookworm_current_$(KERNEL_VERSION).img
 DEST_DIR=.
 
