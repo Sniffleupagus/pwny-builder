@@ -18,10 +18,10 @@ bananapwnm4zero-latest.img.xz: $(OUTPUT_IMAGE)
 	fi
 	xz -k -v -v -T 0 -c $< > $@
 	outname=bananapwnm4zero
-	/bin/bash -c "cp $@ $DEST_DIR/bananapwnm4zero-$$(date +%Y%m%d%H%M).img.xz"
+	/bin/bash -c "cp $@ $(DEST_DIR)/bananapwnm4zero-$$(date +%Y%m%d%H%M).img.xz"
 
 
-$(OUTPUT_IMAGE): builders/armbian-build config-bananapwnm4zero.conf builders/armbian-build/output/config/linux-sunxi64-current.config
+$(OUTPUT_IMAGE): builders/armbian-build config-bananapwnm4zero.conf builders/armbian-build/output/config/linux-sunxi64-current.config force-reimage
 	cd builders/armbian-build && time ./compile.sh bananapwnm4zero
 
 armbian-kernel:
