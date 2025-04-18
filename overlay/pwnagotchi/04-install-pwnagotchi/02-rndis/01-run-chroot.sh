@@ -10,10 +10,12 @@ echo "*** Configuring RNDIS"
 
 # enable usb0 via nmcli
 for rc in rc.local rc.local.ORIG; do
+  if [ -f /etc/${rc} ]; then
     if ! grep 'nmcli conn up usb0' /etc/${rc} ; then
 	echo "|-+ bring usb0/RNDIS up in ${rc}"
 	sed -i '/^exit 0/inmcli conn up usb0' /etc/${rc}
     fi
+  fi
 done
 
 # Debian-image-builder for bananapi m4 zero uses usb1 for RNDIS
@@ -31,7 +33,7 @@ fi
 # set host and dev ID on g_cdc, so not random RNDIS devices
 if [ ! -f /etc/modprobe.d/g_cdc.conf ]; then
    echo "|-> Setting up g_cdc device IDs"
-   echo "options g_cdc use_eem=0 host_addr=f0:0d:ba:be:f0:0d dev_addr=58:70:77:6e:79:58" > /etc/modprobe.d/g_ether.conf
+   echo "options g_cdc use_eem=0 host_addr=f0:0d:ba:be:f0:0d dev_addr=58:70:77:6e:79:58" > /etc/modprobe.d/g_cdc.conf
 fi
 
 echo "|-- RNDIS Configuration Complete"
