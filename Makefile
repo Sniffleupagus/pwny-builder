@@ -4,7 +4,7 @@
 # been a while since I made a makefile
 
 ARMBIAN_VERSION=$(shell cat builders/armbian-build/VERSION)
-KERNEL_VERSION=$(shell grep -A2 'current)'  builders/armbian-build/config/sources/families/include/sunxi64_common.inc  | grep KERNELBRANCH | cut -d '"' -f 2 | cut -d v -f 2)
+KERNEL_VERSION=$(shell grep -A2 'current'  builders/armbian-build/config/sources/families/include/sunxi64_common.inc  | grep KERNELBRANCH | cut -d '"' -f 2 | cut -d v -f 2)
 OUTPUT_IMAGE=output/images/Armbian-unofficial_$(ARMBIAN_VERSION)-trunk_Bananapim4zero_bookworm_current_$(KERNEL_VERSION).img
 DEST_DIR=.
 
@@ -22,6 +22,7 @@ bananapwnm4zero-latest.img.xz: $(OUTPUT_IMAGE)
 
 
 $(OUTPUT_IMAGE): builders/armbian-build config-bananapwnm4zero.conf builders/armbian-build/output/config/linux-sunxi64-current.config force-reimage
+	echo "Building $(OUTPUT_IMAGE)"
 	cd builders/armbian-build && time ./compile.sh bananapwnm4zero
 
 armbian-kernel:
