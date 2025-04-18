@@ -51,7 +51,7 @@ for m in $(cd ${ROOTFS_DIR}/lib/modules ; ls); do
 	#make install
 
 	dkms add     -m brcmfmac-nexmon-dkms -v 6.6 -k $mod
-	dkms build   -m brcmfmac-nexmon-dkms -v 6.6 -k $mod
+	dkms build   -m brcmfmac-nexmon-dkms -v 6.6 -k $mod || cat /var/lib/dkms/brcmfmac-nexmon-dkms/6.6/build/make.log
 	dkms install -m brcmfmac-nexmon-dkms -v 6.6 -k $mod --force
     fi
 done
