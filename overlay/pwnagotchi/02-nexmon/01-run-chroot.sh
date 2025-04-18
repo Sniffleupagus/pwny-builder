@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 # install nexmon
-NEXMON_REPO=https://github.com/DrSchottky/nexmon.git
+NEXMON_REPO=https://github.com/Sniffleupagus/nexmon.git
 
 NEXMON_DKMS_REPO=https://gitlab.com/nursejackass/brcmfmac-nexmon-dkms.git
 
@@ -11,13 +11,7 @@ NEXMON_PATCHES="bcm43430a1/7_45_41_46 bcm43455c0/7_45_206 bcm43436b0/9_88_4_65"
 if [ ${BOARD} == "bananapim4zero" ]; then
     NEXMON_PATCHES="bcm43455c0/7_45_206"
 fi
-
-PHOME="/home/pwnagotchi"
-
 cd /usr/local/src
-
-mkdir -p ${PHOME}/git
-pushd ${PHOME}/git
 
 BUILT_ONE=false
 
@@ -35,8 +29,9 @@ if [ -f "/boot/armbianEnv.txt" -o -f "/boot/extlinux/extlinux.conf" ]; then
 fi
 
 # build DKMS kernel modules
-for m in $(cd /lib/modules ; ls); do
-    if [ -d /lib/modules/$m/build ]; then
+ls -l ${ROOTFS_DIR}/lib/modules
+for m in $(cd ${ROOTFS_DIR}/lib/modules ; ls); do
+    if [ -d ${ROOTFDS_DIR}/lib/modules/$m/build ]; then
 	mod=$m
 	echo
 	echo ">>>---> building DKMS Nexmon module for $mod"
@@ -44,13 +39,14 @@ for m in $(cd /lib/modules ; ls); do
 
 	export QEMU_UNAME=$mod
 	export PLATFORMUNAME=$mod
+	export KERNELRELEASE=$mod
 	uname -a
 
 	export KERNEL=$(echo $mod | cut -d . -f -2)
-	MOD_DEST=/lib/modules/${mod}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac
+	MOD_DEST=${ROOTFS_DIR}/lib/modules/${mod}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac
 
 	echo "+ Building DKMS nexmon module for ${mod}"
-	make clean || true
+	KERNELRELEASE=$mod make clean || true
 	#make
 	#make install
 
@@ -60,6 +56,8 @@ for m in $(cd /lib/modules ; ls); do
     fi
 done
 popd
+
+apt-mark hold firmware-brcm80211
 
 # download or unpack nexmon
 NEXMON_TARFILE="/tmp/overlay/pwnagotchi/files/nexmon-dev.zip"
@@ -71,14 +69,18 @@ if [ ! -d nexmon ]; then
 	if [ -d nexmon-dev ]; then
 	    mv nexmon-dev nexmon
 	fi
+	pushd nexmon
     else
 	echo "=== cloning nexmon repository $NEXMON_REPO"
+	echo "in 10" ; sleep 10
 	git clone --depth=1 $NEXMON_REPO
+	pushd nexmon
     fi
-    cd nexmon
 else
-    cd nexmon
+    pushd nexmon
 fi
+
+touch DISABLE_STATISTICS
 
 if [ -f "/boot/armbianEnv.txt" ]; then
     # -DDEBUG in the driver does not compile on armbian
@@ -103,24 +105,40 @@ if [ ! -f /usr/bin/nexutil ]; then
     popd
 fi
 
+ls -l /usr/bin/nexutl || true
+
 # build Nexmon patched firmware, using last kernel version "mod"
 echo "* --> Building patched firmware"
+export KERNEL_REV=$(echo $mod | sed 's/\([0-9]\+\.[0-9]\+\)\..*/\1/')
 for p in $NEXMON_PATCHES; do
     pushd patches/$p/nexmon
+
+    sed -i -e 's#^KERNEL_VERSION = .*$#KERNEL_VERSION = \$(if $(KERNEL_REV),\$(KERNEL_REV),\$(shell uname -r | sed "s/\\([0-9]\\+\\.[0-9]\\+\\)\\..*/\\1/"))#' Makefile
+    
+    # instead of building the module, let it find the local file
+    # actual module is built with dkms above
     echo "    ===---> make clean $p"
-    make clean || true
+    KERNEL_REV=${KERNEL_REV} make clean || true
     RAMFILE=$(cat ${NEXMON_ROOT}/firmwares/$p/definitions.mk | grep RAM_FILE | cut -d = -f 2)
     echo "    ===---> patch firmware $p: ${RAMFILE}"
     make ${RAMFILE}
     echo "    ===+++> install patched firmware $p/${RAMFILE}"
     # use invalid kernel number so install-firmware
     # skips module unloading and loading
+
+    # patch the Makefile to not build brcmfmac.ko, just the firmware
+    sed -i -e 's/^install-firmware: $(RAM_FILE) brcmfmac.ko/install-firmware: $(RAMFILE)/' Makefile
+    
     QEMU_UNAME=4.20.69 make install-firmware || true
     BUILT_ONE=true
     popd
 done
 
+
 curl -s -d "=== nexmon build complete" ntfy.sh/pwny_builder
+
+popd
+rm -r nexmon
 
 # system specific configuration
 if [ ${BOARD} == "bananapim4zero" ]; then
@@ -153,10 +171,11 @@ if ${BUILT_ONE} ; then
     INCOMING=/tmp/pwny_parts
     mkdir -p ${INCOMING}
     pushd /
-    tar -cvvzf ${INCOMING}/nexmon_backup.tar.gz \
+    tar --ignore-failed-read -cvvzf ${INCOMING}/nexmon_backup.tar.gz \
 	lib/modules/*/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac \
-	lib/firmware/brcm/brcmfmac43{430,455,436,436s}-sdio.bin usr/bin/nexutil
+	lib/firmware/brcm/brcmfmac43{430,455,436,436s}-sdio.bin usr/bin/nexutil || true
     popd
     curl -s -d "Pwnagotchi built nexmon" ntfy.sh/pwny_builder
 fi
 
+apt -y remove binutils-arm-none-eabi gcc-arm-none-eabi
