@@ -24,6 +24,12 @@ bananapwnm4zero-latest.img.xz: $(OUTPUT_IMAGE)
 $(OUTPUT_IMAGE): builders/armbian-build config-bananapwnm4zero.conf builders/armbian-build/output/config/linux-sunxi64-current.config
 	cd builders/armbian-build && time ./compile.sh bananapwnm4zero
 
+armbian-kernel:
+	cd builders/armbian-build && time ./compile.sh bananapwnm4zero kernel
+
+armbian-kconfig:
+	cd builders/armbian-build && time ./compile.sh bananapwnm4zero kernel-config
+
 builders/armbian-build:
 	echo In `pwd`
 	sleep 10
