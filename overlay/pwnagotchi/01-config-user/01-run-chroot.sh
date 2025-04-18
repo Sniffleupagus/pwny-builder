@@ -7,6 +7,8 @@ PHOME=/home/${PUSER}
 PVENV=${PHOME}/.venv
 PGROUPS=adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,render,netdev,i2c
 
+groups pwnagotchi || true
+
 useradd -c "Pwnagotchi" -p $(echo pwny1234 | openssl passwd -1 -stdin) -G ${PGROUPS} -d ${PHOME} -m ${PUSER} -k /etc/skel -s /bin/bash
 
 if ! grep "pwnagotchi addons" ${PHOME}/.bashrc ; then
@@ -45,8 +47,10 @@ EOF
 
 fi
 
-ls -a ${PHOME}
+mkdir -p ${PHOME}/git
 
 echo "+++ Set up venv in ${PVENV}"
 
 python3 -m venv ${PVENV} --system-site-packages
+
+ls -a ${PHOME}
