@@ -13,11 +13,12 @@ run_function0 (){
 
     ls -l files/userscripts/
 
-    printenv 
+    #printenv 
 
 }
 
 run_function1 (){
+    echo
     echo ">>>>> ---- >>>>> Function 1"
     echo "Building in $(pwd)"
     echo "Adding FDTOVERLAYS"
@@ -72,7 +73,7 @@ run_function2 (){
     echo "+++ Installing linux headers"
     ls -l /lib
     # install dkms alone, without installing host-OS linux headers
-    apt-get install --no-install-recommends dkms
+    apt-get -q install --no-install-recommends dkms
     dpkg -i /root/linux-*.deb
     ls -l /lib/modules
 
@@ -121,29 +122,35 @@ run_function3 (){
     ls -l
     echo Environment
     printenv
-    for d in p1 p1/boot output/* files; do
+    for d in p1 p2 output/* files; do
 	echo "Listing ${d}"
-	ls -l $d
+	ls -l $d || true
     done
-    echo
-    ls -lR p1/boot
+
+    if [ -d p1/boot ]; then
+	boot_dir="p1/boot"
+	root_dir="p1"
+    else
+	boot_dir="p1"
+	root_dir="p2"
+    fi
+
+    
+    ls -lR ${boot_dir} || true
     echo "Listing mounts"
     losetup -l
     mount | grep -i loop
 
     # install /etc/rc.local
-    ls p*/home/pwnagotchi/git/pwnagotchi/builder/data/etc || true
-    if [ -f p1/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local ]; then
+    ls ${root_dir}/home/pwnagotchi/git/pwnagotchi/builder/data/etc || true
+    if [ -f ${root_dir}/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local ]; then
 	echo "Installing rc.local"
-	cp p1/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local p1/etc/rc.local
-    elif [ -f p2/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local ]; then
-	echo "Installing rc.local"
-	cp p2/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local p2/etc/rc.local
+	cp ${root_dir}/home/pwnagotchi/git/pwnagotchi/builder/data/etc/rc.local ${root_dir}/etc/rc.local
     fi
 
     # install dtb mods    
     for dts in $(cd files/userscripts/files ; find . -name \*.dts); do
-	dtb="p1/boot/$(dirname ${dts})/$(basename ${dts} .dts).dtb"
+	dtb="${boot_dir}/$(dirname ${dts})/$(basename ${dts} .dts).dtb"
 	if [[ "${dts}" = *"/overlays/"* ]]; then
 	    dtb=${dtb}o
 	fi
@@ -156,7 +163,7 @@ run_function3 (){
 	    
 	/usr/bin/dtc -I dts -O dtb -o "${dtb}" "files/userscripts/files/${dts}" || true
     done
-    ls -lR p1/boot/allwinner
+    ls -lR ${boot_dir}/allwinner
     
 }
 
