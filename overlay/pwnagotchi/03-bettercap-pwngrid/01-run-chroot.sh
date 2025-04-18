@@ -51,7 +51,7 @@ for pkg in ${go_pkgs}; do
 	if [ ! -d $pkg ]; then
 	    if [ $pkg = "bettercap" ]; then
 		echo  "Downloading from https://github.com/$pkg/$pkg"
-		git clone https://github.com/$pkg/$pkg $pkg
+		git clone --branch v2.40.0 https://github.com/$pkg/$pkg $pkg
 	    else
 		echo  "Downloading from https://github.com/$repo/$pkg"
 		git clone https://github.com/$repo/$pkg $pkg
@@ -99,7 +99,7 @@ BCAP_UI_ZIPFILE="${PWNY_DIR}/files/bettercap-ui.zip"
 if [ -f "${BCAP_UI_ZIPFILE}" ]; then
     echo "=== Unpacking bettercap ui tarball ${BCAP_UI_TARFILE}"
     pushd ${BETTERCAP_DIR}
-    unzip ${BCAP_UI_ZIPFILE}
+    unzip -q ${BCAP_UI_ZIPFILE}
     popd
 else
     echo "+++ Downloading bettercap ui.zip"
