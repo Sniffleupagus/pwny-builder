@@ -23,10 +23,8 @@ if [ ! -d brcmfmac-nexmon-dkms ]; then
 fi
 pushd ${NEXMON_DKMS_ROOT}
 
-if [ -f "/boot/armbianEnv.txt" -o -f "/boot/extlinux/extlinux.conf" ]; then
-    echo "Disabling -DDEBUG flag on Armbian"
-    sed -i '/-DDEBUG$/s/-DDEBUG/\#-DDEBUG/' Makefile
-fi
+# install dkms alone, without installing host-OS linux headers
+apt-get -yq install --no-install-recommends dkms
 
 # build DKMS kernel modules
 ls -l ${ROOTFS_DIR}/lib/modules
@@ -35,7 +33,6 @@ for m in $(cd ${ROOTFS_DIR}/lib/modules ; ls); do
 	mod=$m
 	echo
 	echo ">>>---> building DKMS Nexmon module for $mod"
-	curl -s -d "build dkms nexmon $mod" ntfy.sh/pwny_builder
 
 	export QEMU_UNAME=$mod
 	export PLATFORMUNAME=$mod
@@ -57,6 +54,7 @@ for m in $(cd ${ROOTFS_DIR}/lib/modules ; ls); do
 done
 popd
 
+echo "+ Holding firmware-brcm80211 to avoid updating and overwriting nexmon custom firmware"
 apt-mark hold firmware-brcm80211
 
 # download or unpack nexmon
@@ -80,16 +78,8 @@ else
     pushd nexmon
 fi
 
+echo Disable Statistics
 touch DISABLE_STATISTICS
-
-if [ -f "/boot/armbianEnv.txt" ]; then
-    # -DDEBUG in the driver does not compile on armbian
-    echo "* --> Removing -DDEBUG from driver Makefile"
-    pushd patches/driver/brcmfmac_6.6.y-nexmon
-    sed -i '/-DDEBUG$/d' Makefile
-    sed -i 's/include \\$/include/' Makefile
-    popd
-fi
 
 echo "* Setting up build environment"
 source setup_env.sh
@@ -134,9 +124,6 @@ for p in $NEXMON_PATCHES; do
     popd
 done
 
-
-curl -s -d "=== nexmon build complete" ntfy.sh/pwny_builder
-
 popd
 rm -r nexmon
 
@@ -149,6 +136,8 @@ if [ ${BOARD} == "bananapim4zero" ]; then
     fi
     echo "Copying nexmon 43455 firmware to updates/brcm/cyfmac43455-sdio.bin"
     cp -f brcm/brcmfmac43455-sdio.bin updates/brcm/cyfmac43455-sdio.bin
+    mkdir -p /tmp/pwny_parts/usr/bin
+    cp -f /usr/bin/nexutil /tmp/pwny_parts/usr/bin
     mkdir -p /tmp/pwny_parts/lib/firmware/brcm
     mkdir -p /tmp/pwny_parts/lib/firmware/updates/brcm
     cp -f brcm/brcmfmac43455-sdio.bin /tmp/pwny_parts/lib/firmware/brcm
@@ -175,7 +164,6 @@ if ${BUILT_ONE} ; then
 	lib/modules/*/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac \
 	lib/firmware/brcm/brcmfmac43{430,455,436,436s}-sdio.bin usr/bin/nexutil || true
     popd
-    curl -s -d "Pwnagotchi built nexmon" ntfy.sh/pwny_builder
 fi
 
 apt -y remove binutils-arm-none-eabi gcc-arm-none-eabi
