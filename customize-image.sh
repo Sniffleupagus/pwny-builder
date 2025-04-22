@@ -109,33 +109,21 @@ Main() {
 	apt-get -yq --allow-releaseinfo-change update
 	echo "===== apt upgrade ====="
 	if [ "${DO_APT_UPGRADE:-'YES'}" == "YES" ]; then
-	    if apt-get -yq upgrade $(cat ${p}) > >(tee -a ${PWNLOGFILE}) 2> >(tee -a ${PWNLOGFILE}.err) ; then
-		tail -1 ${PWNLOGFILE} | ntfy_send "Apt Upgrade" 1 package
-	    else
-		tail -1 ${PWNLOGFILE}.err | ntfy_send "Apt Upgrade" 1 package
-	    fi
+	    apt-get -yq upgrade $(cat ${p})
 	fi
 
 	echo "===== pwnagotchi packages ====="
 	pushd /tmp/overlay/pwnagotchi
 	for p in $(find . -name '[0-9][0-9]-packages' | sort -V ); do
  	    echo "=---> $p" | tee -a ${PWNLOGFILE}
-	    if apt-get -yqq install $(cat ${p}) > >(tee -a ${PWNLOGFILE}) 2> >(tee -a ${PWNLOGFILE}.err) ; then
-		tail -1 ${PWNLOGFILE} | ntfy_send "$p" 1 package
-	    else
-		tail -1 ${PWNLOGFILE}.err | ntfy_send "$p" 1 package
-	    fi
+	    apt-get -yqq install $(cat ${p})
 	done
 
 	echo "===== pwnagotchi scripts ====="
 	for s in $(find . -name '[0-9][0-9]-*.sh' | sort -V ); do
 	    echo "=---> $s" | tee -a ${PWNLOGFILE}
 	    pushd $(dirname $s)
-	    if bash -e $(basename $s) > >(tee -a ${PWNLOGFILE}) 2>&1 ; then
-		tail -3 ${PWNLOGFILE} |  ntfy_send "$s" 2 radio_button
-	    else
-		tail -5 ${PWNLOGFILE} |  ntfy_send "Error $s" 2 radio_button
-	    fi
+	    bash -e $(basename $s)
 	    popd
 	done
 	popd
