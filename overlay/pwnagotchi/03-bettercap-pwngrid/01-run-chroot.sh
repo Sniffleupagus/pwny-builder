@@ -51,18 +51,18 @@ for pkg in ${go_pkgs}; do
 	if [ ! -d $pkg ]; then
 	    if [ $pkg = "bettercap" ]; then
 		echo  "Downloading from https://github.com/$pkg/$pkg"
-		git clone --branch v2.40.0 https://github.com/$pkg/$pkg $pkg
+		git clone --branch patch-1 https://github.com/Sniffleupagus/$pkg $pkg
 	    else
 		echo  "Downloading from https://github.com/$repo/$pkg"
 		git clone https://github.com/$repo/$pkg $pkg
 	    fi
 	fi
-	
+	figlet $pkg || true
 	echo "+ Go mod tidy $pkg"
 	pushd ${ROOTFS_DIR}/usr/local/src/$pkg
 	go mod tidy
 	echo "+ build $pkg started at $(date)"
-	make -j 4
+	make
 
 	echo "+ Installing $pkg"
 	make install
@@ -89,6 +89,9 @@ done
 BETTERCAP_REPO="https://github.com/bettercap"
 BETTERCAP_DIR="${ROOTFS_DIR}/usr/local/share/bettercap"
 mkdir -p ${BETTERCAP_DIR}
+
+echo "Bettercap: $(/usr/local/bin/bettercap -version || true)"
+echo "Pwngrid: $(/usr/local/bin/pwngrid -version || true)"
 
 pushd /home/pwnagotchi/git
 
@@ -128,7 +131,7 @@ if [[ -f pwnagotchi-manual.cap ]]; then
 
     cat >>pwnagotchi-auto.cap <<EOF
 
-set wifi.handshakes.file /boot/handshakes
+set wifi.handshakes.file /root/handshakes/
 set wifi.handshakes.aggregate false
 EOF
 
