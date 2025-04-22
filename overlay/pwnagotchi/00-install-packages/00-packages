@@ -5,7 +5,6 @@ bison
 bluez
 build-essential
 curl
-dkms
 espeak-ng
 evtest
 fbi
