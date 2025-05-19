@@ -32,20 +32,10 @@ sudo ./build.sh -c config.pwnagotchi
 ```
 
 ## armbian-build
-These currently work with [armbian-build](https://github.com/armbian/build), and make a working pwnagotchi for bananapim4zero (both versions). Any other example configs have not been well tested.
-
-## debian-image-builder
-These work with [debian-image-builder](https://github.com/pyavitz/debian-image-builder). It mostly works with both versions of the BananaPi M4 Zero. It needs edits to the device tree overlays, depending on the board.  Nexmon builds as a DKMS module for the V2 board.
-
-# pwny-builder requirements:
-- x86_64 / aarch64 machine/VM running Armbian / Ubuntu Jammy 22.04.x
-- armbian-build requires at least 2GB of memory and ~35GB of disk space
-- pwny_builder needs an additional ~15G (or so)
-
-To build a pwnagotchi with armbian-build:
+These currently work with [armbian-build](https://github.com/armbian/build), and make a working pwnagotchi for bananapim4zero (both versions). Also tested building for a Radxa Zero 3W. The image boots, but did not get monitor mode with the built in wifi. 
+To build a bananapwnm4zero pwnagotchi with armbian-build:
 
 ```
-# install requirement(s)
 apt-get -y install git
 # clone this repo
 git clone https://github.com/Sniffleupagus/pwny-builder.git
@@ -57,4 +47,20 @@ ln -s ../.. userpatches
 ```
 The build will download everything needed, set up a minimal armbian image, and install pwnagotchi and all of its dependencies. The resulting image will be in builders/armbian-build/output/images, with a name like
 ```Armbian-unofficial_24.11.0-trunk_Bananapim4zero_bookworm_current_6.6.62.img```
+
+## debian-image-builder
+These scripts also work with [debian-image-builder](https://github.com/pyavitz/debian-image-builder). The resulting image mostly works with both versions of the BananaPi M4 Zero. It needs edits to the device tree overlays, depending on the board (see comments in /boot/extLinux/extLinux.conf).  Nexmon builds as a DKMS module for the V2 board. Pwnagotchi will likely work on other boards supported on this build, as long as there is a Wifi device with monitor mode.
+To build with debian-image-builder:
+```
+git clone https://github.com/Sniffleupagus/pwny-builder.git
+git clone https://github.com/pyavitz/debian-image-builder.git
+cd debian-image-builder/files
+rm -rf userscripts
+ln -s ../../pwny-builder/overlay/pwnagotchi userscripts
+cd ..
+# set up userdata.txt to have USCRIPTS="1"
+# tested only with bananapim4zero
+make kernel board=bananapim4zero
+make image board=bananapim4zero
+```
 Flash to an SD card using Raspberry Pi Imager, Balena etcher, or other. Do not apply OS customizations (user, wifi network, etc) as part of the flash.
