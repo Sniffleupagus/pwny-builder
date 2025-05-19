@@ -4,10 +4,12 @@ bc
 bison
 bluez
 build-essential
+cowsay
 curl
 espeak-ng
 evtest
 fbi
+figlet
 flex
 fonts-dejavu
 fonts-dejavu-core
