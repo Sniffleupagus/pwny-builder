@@ -9,7 +9,7 @@ PGROUPS=adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,render,netd
 
 groups pwnagotchi || true
 
-useradd -c "Pwnagotchi" -p $(echo pwny1234 | openssl passwd -1 -stdin) -G ${PGROUPS} -d ${PHOME} -m ${PUSER} -k /etc/skel -s /bin/bash
+id -u pwnagotchi || useradd -c "Pwnagotchi" -p $(echo pwny1234 | openssl passwd -1 -stdin) -G ${PGROUPS} -d ${PHOME} -m ${PUSER} -k /etc/skel -s /bin/bash
 
 if ! grep "pwnagotchi addons" ${PHOME}/.bashrc ; then
     echo "\-> Adding pwnagotchi aliases to .bashrc"
