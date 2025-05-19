@@ -8,7 +8,7 @@ NEXMON_DKMS_REPO=https://gitlab.com/nursejackass/brcmfmac-nexmon-dkms.git
 # raspberry pi defaults
 NEXMON_PATCHES="bcm43430a1/7_45_41_46 bcm43455c0/7_45_206 bcm43436b0/9_88_4_65"
 
-if [ ${BOARD} == "bananapim4zero" ]; then
+if [ "${BOARD}" == "bananapim4zero" ]; then
     NEXMON_PATCHES="bcm43455c0/7_45_206"
 fi
 cd /usr/local/src
@@ -27,9 +27,20 @@ pushd ${NEXMON_DKMS_ROOT}
 apt-get -yq install --no-install-recommends dkms
 
 # build DKMS kernel modules
-ls -l ${ROOTFS_DIR}/lib/modules
-for m in $(cd ${ROOTFS_DIR}/lib/modules ; ls); do
-    if [ -d ${ROOTFDS_DIR}/lib/modules/$m/build ]; then
+echo "/lib/modules"
+uname -a
+ls -l /lib/modules || true
+echo "ROOTFS_DIR = ${ROOTFS_DIR}"
+
+if [ -d "${ROOTFS_DIR}" ]; then
+    KERNELS=${ROOTFS_DIR}/lib/modules
+else
+    KERNELS=/lib/modules
+fi
+ls -l ${KERNELS}
+
+for m in $(cd ${KERNELS} ; ls); do
+    if [ -d ${KERNELS}/$m/build ]; then
 	mod=$m
 	echo
 	echo ">>>---> building DKMS Nexmon module for $mod"
@@ -40,22 +51,36 @@ for m in $(cd ${ROOTFS_DIR}/lib/modules ; ls); do
 	uname -a
 
 	export KERNEL=$(echo $mod | cut -d . -f -2)
-	MOD_DEST=${ROOTFS_DIR}/lib/modules/${mod}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac
+	MOD_DEST=${KERNELS}/${mod}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac
 
 	echo "+ Building DKMS nexmon module for ${mod}"
 	KERNELRELEASE=$mod make clean || true
 	#make
 	#make install
 
-	dkms add     -m brcmfmac-nexmon-dkms -v 6.6 -k $mod
-	dkms build   -m brcmfmac-nexmon-dkms -v 6.6 -k $mod || cat /var/lib/dkms/brcmfmac-nexmon-dkms/6.6/build/make.log
-	dkms install -m brcmfmac-nexmon-dkms -v 6.6 -k $mod --force
+	if [ ! -d /usr/src/brcmfmac-nexmon-dkms-6.6 ]; then
+	    dkms add -m brcmfmac-nexmon-dkms -v 6.6 -k $mod
+	fi
+
+	if dkms build   -m brcmfmac-nexmon-dkms -v 6.6 -k $mod ; then
+	    echo Installing dkms driver
+	    dkms install -m brcmfmac-nexmon-dkms -v 6.6 -k $mod --force
+	else
+	    echo Skipping install:
+	    cat /var/lib/dkms/brcmfmac-nexmon-dkms/6.6/build/make.log
+	fi
+	
     fi
 done
 popd
 
 echo "+ Holding firmware-brcm80211 to avoid updating and overwriting nexmon custom firmware"
 apt-mark hold firmware-brcm80211
+
+if [ -f /usr/lib/firmware/NEXMON_INSTALLED ]; then
+    echo "Nexmon firmware already installed"
+    exit 0
+fi
 
 # download or unpack nexmon
 NEXMON_TARFILE="/tmp/overlay/pwnagotchi/files/nexmon-dev.zip"
@@ -70,7 +95,6 @@ if [ ! -d nexmon ]; then
 	pushd nexmon
     else
 	echo "=== cloning nexmon repository $NEXMON_REPO"
-	echo "in 10" ; sleep 10
 	git clone --depth=1 $NEXMON_REPO
 	pushd nexmon
     fi
@@ -108,7 +132,7 @@ for p in $NEXMON_PATCHES; do
     # instead of building the module, let it find the local file
     # actual module is built with dkms above
     echo "    ===---> make clean $p"
-    KERNEL_REV=${KERNEL_REV} make clean || true
+    QEMU_UNAME=$mod KERNEL_REV=${KERNEL_REV} make clean-firmware || true
     RAMFILE=$(cat ${NEXMON_ROOT}/firmwares/$p/definitions.mk | grep RAM_FILE | cut -d = -f 2)
     echo "    ===---> patch firmware $p: ${RAMFILE}"
     make ${RAMFILE}
@@ -117,18 +141,17 @@ for p in $NEXMON_PATCHES; do
     # skips module unloading and loading
 
     # patch the Makefile to not build brcmfmac.ko, just the firmware
-    sed -i -e 's/^install-firmware: $(RAM_FILE) brcmfmac.ko/install-firmware: $(RAMFILE)/' Makefile
+    sed -i -e '/^install-firmware:.* brcmfmac.ko/s/ brcmfmac.ko//' Makefile
     
     QEMU_UNAME=4.20.69 make install-firmware || true
     BUILT_ONE=true
     popd
 done
-
 popd
-rm -r nexmon
+#rm -r nexmon
 
 # system specific configuration
-if [ ${BOARD} == "bananapim4zero" ]; then
+if [ "${BOARD}" == "bananapim4zero" ]; then
     pushd /usr/lib/firmware
     if [ ! -f  updates/brcm/cyfmac43455-sdio.bin.ORIG ]; then
 	echo "Saving backup of original cyfmac43455 firmware"
@@ -150,10 +173,12 @@ else
 	echo Linking 43430 firmware to 43436s for pizero2w with 43430 chip
 	ln -sf /usr/lib/firmware/brcm/brcmfmac43430-sdio.bin /usr/lib/firmware/brcm/brcmfmac43436s-sdio.bin
     else
-	echo -n Link 43430->43436s exists
+	echo -n "Link 43430->43436s exists: "
 	ls -l /usr/lib/firmware/brcm/brcmfmac43436s-sdio.bin
     fi
 fi
+
+(echo NEXMON BRCMFMAC firmware installed; date) >/usr/lib/firmware/NEXMON_INSTALLED
 
 if ${BUILT_ONE} ; then
     echo " *> Saving all nexmon products"
@@ -165,5 +190,3 @@ if ${BUILT_ONE} ; then
 	lib/firmware/brcm/brcmfmac43{430,455,436,436s}-sdio.bin usr/bin/nexutil || true
     popd
 fi
-
-apt -y remove binutils-arm-none-eabi gcc-arm-none-eabi
