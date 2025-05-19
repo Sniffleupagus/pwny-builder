@@ -9,8 +9,9 @@
 #
 myrndis=${PWNY_RNDIS:-YES}                      # enable RNDIS or not
 mydeauth=${PWNY_DEAUTH:-false}                  # deauth enabled for config.toml
-mydisplay=${PWNY_DISPLAY:-displayhatmini}       # type of display for config.toml, maybe /boot/config.txt
-mytouchscreen=${PWNY_TOUCHSCREEN:-YES}          # enable goodix touchscreen overlay
+mydisplay=${PWNY_DISPLAY:-displayhatmini}       # type of display for config.toml
+myspidev=${PWNY_SPIDEV:-0}
+mytouchscreen=${PWNY_TOUCHSCREEN:-NO}          # enable goodix touchscreen overlay
 mybluetooth=${PWNY_BLUETOOTH:-"NO"}             # host mac address for bt-tether in config.toml
 mybtipaddr=${PWNY_BTIPADDR:-"172.20.10.7"}      # pwny ip address for bt-tether
 
@@ -169,7 +170,8 @@ installPlugins https://github.com/hannadiamond/pwnagotchi-plugins.git hannahdiam
 
 echo "  \--> Patching for configurable i2c bus"
 pushd /home/pwnagotchi/git/hannahdiamond-plugins/plugins
-patch <<EOF
+if [ ! -f ups_hat_c.py.orig ]; then
+    patch -b <<EOF
 diff --git a/plugins/ups_hat_c.py b/plugins/ups_hat_c.py
 index 74a45b9..7ab1061 100644
 --- a/plugins/ups_hat_c.py
@@ -197,6 +199,7 @@ index 74a45b9..7ab1061 100644
      def on_ui_setup(self, ui):
          if self.options["label_on"]:
 EOF
+fi
 popd
 
 echo "++> PwnCrack"
@@ -216,8 +219,9 @@ popd
 echo "--> Wardriver"
 installPlugins https://github.com/cyberartemio/wardriver-pwnagotchi-plugin.git wardriver-pwnagotchi-plugin "" 'wardriver.py wardriver_assets'
 
-echo "--> Wall of Flippers - holy shit"
-cd /root && git clone https://www.github.com/cyberartemio/Wall-of-Flippers && cd Wall-of-Flippers
+echo "--> Wall of Flippers"
+pushd /root && git clone https://www.github.com/cyberartemio/Wall-of-Flippers || true
+cd Wall-of-Flippers
 echo "--> --> Creating WoF venv"
 python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && deactivate
 echo "--> --> Setting up wof.service"
@@ -245,7 +249,7 @@ EOF
 
 echo "--> --> Wall-of-Flippers plugin"
 installPlugins https://github.com/cyberartemio/wof-pwnagotchi-plugin.git wof-pwnagotchi-plugin '' 'wof.py wof_assets'
-
+popd
 echo "<-- Finished with Wall of Flippers"
 
 echo "--> Pwnagotchi utils"
@@ -278,7 +282,10 @@ ui.web.username = "pwny"
 ui.web.password = "pwny1234"
 ui.display.enabled = true
 ui.display.type = "${mydisplay}"
+ui.display.spi_dev = ${myspidev}
 ui.display.rotation = 0
+
+main.iface = "wlan0mon"
 
 main.custom_plugins = "/usr/local/share/pwnagotchi/custom-plugins"
 bettercap.handshakes = "/root/handshakes/"
@@ -367,17 +374,16 @@ main.plugins.bt-tether.devices.iphone.priority = 15
 EOC
 fi
 
-
 #
 # /boot
 #
 
-# /boot/config.txt on raspberry pi
-if [ -f /boot/config.txt ]; then
-    echo "Configuring /boot/config.txt on Raspberry Pi Probably"
-    if ! grep "pwnagotchi additions" /boot/config.txt; then
-
-	cat >>/boot/config.txt <<EOC
+# /boot/firmware/config.txt on raspberry pi
+if [ -f /boot/firmware/config.txt ]; then
+    figlet config.txt
+    if ! grep "pwnagotchi additions" /boot/firmware/config.txt; then
+	echo "Configuring /boot/firmware/config.txt on Raspberry Pi Probably"
+	cat >>/boot/firmware/config.txt <<EOC
 #
 # pwnagotchi additions
 #
@@ -390,19 +396,19 @@ EOC
 	    comment='#'
 	else
 	    echo "-- yes RNDIS"
-	    if ! grep g_ether /boot/cmdline.txt; then
-		echo 'Modifying cmdline.txt for g_ether/RNDIS'
-		sed -i '1 s/.*/& modules-load=dwc2,g_ether/' /boot/cmdline.txt
+	    if ! grep g_ether /boot/firmware/cmdline.txt; then
+		echo 'Modifying cmdline.txt for g_cdc/RNDIS'
+		sed -i '1 s/.*/& modules-load=dwc2,g_cdc/' /boot/firmware/cmdline.txt
 	    fi
 	    comment=''
 	fi
-	cat >>/boot/config.txt <<EOC
+	cat >>/boot/firmware/config.txt <<EOC
 # dwc2 for RNDIS, OTG usb. comment out for X306 usb battery hat
 ${comment}dtoverlay=dwc2
 
 EOC
 
-	cat >>/boot/config.txt <<EOF
+	cat >>/boot/firmware/config.txt <<EOF
 # enable i2c and spi for screens"
 dtoverlay=spi1-3cs
 dtparam=i2c1=on
@@ -422,7 +428,7 @@ EOF
 	    comment='#'
 	fi
 
-	cat >>/boot/config.txt <<EOC
+	cat >>/boot/firmware/config.txt <<EOC
 #### touchscreen on waveshare touch e-paper
 ${comment}dtoverlay=goodix,interrupt=27,reset=22
 
@@ -434,7 +440,7 @@ EOC
 	    comment='#'
 	fi
     
-	cat >>/boot/config.txt <<EOC
+	cat >>/boot/firmware/config.txt <<EOC
 #### for PWM backlighting on pimoroni displayhatmini
 ${comment}dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4
 
@@ -444,7 +450,7 @@ EOC
 fi
 
 if ! grep "g_cdc" /etc/modules; then
-    # if g_ether isn't set up in /boot/config.txt (raspberry pi)
+    # if g_ether isn't set up in /boot/firmware/config.txt (raspberry pi)
     # add it to /etc/modules (armbian, debian-image-builder)
     echo "g_cdc" >>/etc/modules
 fi
@@ -500,6 +506,10 @@ EOF
 fi
 
 # Debian Image Builder stuff
+figlet boot
+ls -l /boot
+sleep 5
+
 EXTLINUXCONF=/boot/extlinux/extlinux.conf
 if [ -f ${EXTLINUXCONF} ]; then
     echo "Use Predictable network names"
@@ -510,7 +520,7 @@ if [ -f ${EXTLINUXCONF} ]; then
         # BANANA PI M4 ZERO V1
         #fdtoverlays ../allwinner/overlays/sunxi-h616-pg-15-16-i2c4.dtbo ../allwinner/overlays/sunxi-h616-spi1-cs1-spidev.dtbo ../allwinner/overlays/sunxi-h616-pg-6-7-uart1.dtbo
         # BANANA PI M4 ZERO V2
-        fdtoverlays ../allwinner/overlays/sunxi-h618-bananapi-m4-sdio-wifi-bt.dtbo ../allwinner/overlays/sunxi-h616-pi-5-6-i2c0.dtbo ../allwinner/overlays/sunxi-h616-spi1-cs1-spidev.dtbo ../allwinner/overlays/sunxi-h616-pi-13-14-uart4.dtbo
+	fdtoverlays ../allwinner/overlays/sunxi-h618-bananapi-m4-sdio-wifi-bt.dtbo ../allwinner/overlays/sunxi-h616-spi1-cs1-spidev.dtbo ../allwinner/overlays/sunxi-h616-pi-13-14-uart4.dtbo ../allwinner/overlays/sunxi-h616-i2c0.dtbo
 EOF
 
     sed -i -e 's/console=ttyS0[^ ]//' ${EXTLINUXCONF}
@@ -521,13 +531,6 @@ EOF
     # second port shows up as usb0 on Armbian, but usb1 on DIB
     mv usb0-cfg usb1-cfg
     sed -i 's/usb0/usb1/g' usb1-cfg
-fi
-
-if [ -f board.txt ]; then
-    echo "====------> Adding overlays to board.txt"
-    sed -i "s#^FDTOVERLAYS=.*#FDTOVERLAYS='${FDTOVERLAYS}'#" board.txt
-    echo "Result:"
-    grep fdtoverlays board.txt
 fi
 
 # old network server. set it to ignore wlan0 so wpa-supplicant doesn't fight with pwny
@@ -543,17 +546,11 @@ fi
 # services do not need to be started by the installation.  First boot will enable them
 # after configuring
 #systemctl enable bettercap pwngrid-peer pwnagotchi
+systemctl enable pwnagotchi-setup
 
 echo "* Fixing pwnagotchi and /root file permissions"
 chown -R pwnagotchi:pwnagotchi /home/pwnagotchi
 chmod a+rX /root
-echo "Setting up /boot/handshakes directory, linked to /root/handshakes"
+echo "Setting up /root/handshakes directory"
 mkdir -p -m 0777 /root/handshakes
-#ln -s /boot/handshakes /root/handshakes
 
-echo "- Cleaning up caches"
-rm -rf /root/go
-rm -rf /root/.cache
-rm -rf /var/cache/apt
-rm -rf /usr/local/src/*
-rm -rf /usr/local/go
