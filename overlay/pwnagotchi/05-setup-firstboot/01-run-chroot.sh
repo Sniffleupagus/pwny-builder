@@ -65,3 +65,14 @@ sed -i "s/$hostname_current/$hostname_new/g" /etc/hostname
 
 # let NetworkMananger manage interfaces specified in /etc/network/interfaces.d
 sed -i "s/^managed=false/managed=true/" /etc/NetworkManager/NetworkManager.conf
+
+# free up space for unnecessary things
+if [ ! "${NO_CLEANUP}" ]; then
+    apt -y remove binutils-arm-none-eabi gcc-arm-none-eabi
+    echo "- Cleaning up caches"
+    rm -rf /root/go
+    rm -rf /root/.cache
+    rm -rf /var/cache/apt
+    rm -rf /usr/local/src/*
+    rm -rf /usr/local/go
+fi
