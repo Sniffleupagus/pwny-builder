@@ -13,6 +13,25 @@ run_function0 (){
 
     ls -l files/userscripts/
 
+    ls -l
+    figlet board.txt
+
+    fdtoverlays="# for Bananapi M4Zero V1 (realtek wifi)
+	#fdtoverlays ../allwinner/overlays/sunxi-h616-i2c4.dtbo ../allwinner/overlays/sunxi-h616-spi1-cs1-spidev.dtbo ../allwinner/overlays/sunxi-h616-pg-6-7-uart1.dtbo
+	# for Bananapi M4Zero V2 (brcmfmac wifi)
+       	fdtoverlays ../allwinner/overlays/sunxi-h618-bananapi-m4-sdio-wifi-bt.dtbo ../allwinner/overlays/sunxi-h616-spi1-cs1-spidev.dtbo ../allwinner/overlays/sunxi-h616-pi-13-14-uart4.dtbo ../allwinner/overlays/sunxi-h616-i2c0.dtbo"
+
+
+    sef -i "s/net.ifnames=0//" board.txt
+    sed -i "/^EXTLINUX_FDTOVERLAYS=/d" board.txt
+    cat >>board.txt <<EOF
+EXTLINUX_FDTOVERLAYS="# for Bananapi M4Zero V1 (realtek wifi)
+	fdtoverlays ../allwinner/overlays/sunxi-h616-i2c4.dtbo ../allwinner/overlays/sunxi-h616-spi1-cs1-spidev.dtbo ../allwinner/overlays/sunxi-h616-pg-6-7-uart1.dtbo
+	# for Bananapi M4Zero V2 (brcmfmac wifi)
+       	#fdtoverlays ../allwinner/overlays/sunxi-h618-bananapi-m4-sdio-wifi-bt.dtbo ../allwinner/overlays/sunxi-h616-spi1-cs1-spidev.dtbo ../allwinner/overlays/sunxi-h616-pi-13-14-uart4.dtbo ../allwinner/overlays/sunxi-h616-i2c0.dtbo"
+EOF
+    cat board.txt
+    
     #printenv 
 
 }
@@ -21,20 +40,7 @@ run_function1 (){
     echo
     echo ">>>>> ---- >>>>> Function 1"
     echo "Building in $(pwd)"
-    echo "Adding FDTOVERLAYS"
-    FDTOVERLAYS="fdtoverlays"
-    for ol in disable-uart5 gpu pg-i2c4 pg-uart1 ph-i2c1 spi0-spidev spi1-cs1-spidev; do
-	echo "- ${ol}"
-	FDTOVERLAYS="${FDTOVERLAYS} ../allwinner/overlays/sun50i-h616-${ol}.dtbo"
-    done
     
-    if [ -f board.txt ]; then
-	echo "Adding overlays"
-	sed -i "s#^FDTOVERLAYS=.*#FDTOVERLAYS='${FDTOVERLAYS}'#" board.txt
-	echo "Result:"
-	grep fdtoverlays board.txt
-    fi
-
     echo "Listing drives:"
     ls -l p1 p2 || true
 
@@ -70,16 +76,21 @@ run_function2 (){
 
     printenv | cut -c -$(/usr/bin/tput cols)
 
-    echo "+++ Installing linux headers"
-    ls -l /lib
-    # install dkms alone, without installing host-OS linux headers
-    apt-get -q install --no-install-recommends dkms
-    dpkg -i /root/linux-*.deb
+    if ls /root/linux-*.deb; then
+	echo "+++ Installing linux headers"
+	ls -l /lib
+	dpkg -i /root/linux-*.deb
+    fi
+    echo "Linux versions available:"
     ls -l /lib/modules
+    echo "* Holding linux-headers to avoid installing headers for host kernel"
+    apt-mark hold linux-headers-arm64
 
     echo "+++ apt update"
     apt-get -yq --allow-releaseinfo-change update
     apt-get -yq upgrade
+    apt-get -yq install figlet
+
     ls -l /lib/modules
     
     pushd userscripts
@@ -95,19 +106,27 @@ run_function2 (){
     echo "+ Installing apt packages: $(echo ${files} | sort -u)"
     apt-get -y -q install $(echo ${files} | sort -u)
 
-    echo "+ Running instll scripts"
+    # install dkms alone, without installing host-OS linux headers
+    apt-get -q install --no-install-recommends dkms
+
+    echo "+ Running install scripts"
     for s in $(find . -name '[0-9][0-9]-*.sh' | sort -V); do
 	if [[ -f $(dirname $s)/SKIP ]]; then
 	    echo "-- SKIPping $s"
 	elif [[ "$(basename $s)" =~ "-chroot.sh" ]]; then
 	    echo "-> Running ${STATIC} $s"
+	    figlet "chroot# $(dirname $s)" || true
             ${STATIC} -E STATIC=${STATIC},BOARD=${BOARD} /bin/bash -e $s
 	else
-	    echo "-> Running local $s"
+	    echo "-> Running local $(dirname $s)"
+	    figlet "# $s" || true
             STATIC=${STATIC} /bin/bash -e $s
 	fi
     done
     popd
+    echo "% unholding linux-headers-arm64"
+    apt-mark unhold linux-headers-arm64
+    apt -y autoremove
     echo "----- End of function2"
 
 }
@@ -119,9 +138,9 @@ run_function3 (){
     echo "# parent path -------------->  ${0%/*}  "
     echo "# my name ------------------>  ${0##*/} "
     echo "Building in $(pwd)"
-    ls -l
-    echo Environment
-    printenv
+    #ls -l
+    #echo Environment
+    #printenv
     for d in p1 p2 output/* files; do
 	echo "Listing ${d}"
 	ls -l $d || true
