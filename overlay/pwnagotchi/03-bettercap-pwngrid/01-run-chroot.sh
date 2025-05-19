@@ -5,34 +5,36 @@ export PATH=$PATH:/usr/local/go/bin
 INCOMING=$(pwd)/incoming
 echo "Incoming is ${INCOMING}"
 
-FOUNDARCH="armv6l"
-if [ $(uname -m) = "armv6l" -o $(uname -m) = "armv7l" ]; then
-    export FOUNDARCH=armv6l
-elif [ $(uname -m) = "aarch64" ]; then
-    export FOUNDARCH=arm64
-elif [ $(uname -m) = "x86_64" ]; then
-    export FOUNDARCH=amd64
-fi
-
-export go_version=$(curl -sL 'https://golang.org/VERSION?m=text' | head -1)
-
-FILE=${go_version}.linux-${FOUNDARCH}.tar.gz
-
-if !  ${ROOTFS_DIR}/usr/local/go/bin/go version | grep ${go_version}; then
-    echo "+ Installing Golang $FILE"
-
-    pushd /tmp
-    if curl -sOL "https://go.dev/dl/${FILE}"; then
-	rm -rf /usr/local/go
-	ls -l ${FILE}
-	tar -C /usr/local -xzf "${FILE}"
-	echo "* Go is installed"
-    else
-	echo "@ No go lang."
+CheckInstallGo () {
+    FOUNDARCH="armv6l"
+    if [ $(uname -m) = "armv6l" -o $(uname -m) = "armv7l" ]; then
+	export FOUNDARCH=armv6l
+    elif [ $(uname -m) = "aarch64" ]; then
+	export FOUNDARCH=arm64
+    elif [ $(uname -m) = "x86_64" ]; then
+	export FOUNDARCH=amd64
     fi
-    rm ${FILE}
-    popd
-fi
+
+    export go_version=$(curl -sL 'https://golang.org/VERSION?m=text' | head -1)
+
+    FILE=${go_version}.linux-${FOUNDARCH}.tar.gz
+
+    if !  /usr/local/go/bin/go version | grep ${go_version}; then
+	echo "+ Installing Golang $FILE"
+
+	pushd /tmp
+	if curl -sOL "https://go.dev/dl/${FILE}"; then
+	    rm -rf /usr/local/go
+	    ls -l ${FILE}
+	    tar -C /usr/local -xzf "${FILE}"
+	    echo "* Go is installed"
+	else
+	    echo "@ No go lang."
+	fi
+	rm ${FILE}
+	popd
+    fi
+}
 
 export repo="jayofelony"
 
@@ -40,13 +42,15 @@ export go_pkgs="bettercap pwngrid"
 
 for pkg in ${go_pkgs}; do
     echo " --> Checking for $pkg"
-    if [ -f  ${ROOTFS_DIR}/usr/local/bin/$pkg ] ; then
-	ls -l  ${ROOTFS_DIR}/usr/local/bin/$pkg
+    if [ -f  /usr/local/bin/$pkg ] ; then
+	ls -l  /usr/local/bin/$pkg
     elif [ -f ${PWNY_DIR}/files/${BOARD}/usr/local/bin/$pkg ]; then
 	echo "+-> Installing precompiled $pkg"
 	cp -rp ${PWNY_DIR}/files/${BOARD}/usr/local/bin/$pkg /usr/local/bin
     else
-	pushd ${ROOTFS_DIR}/usr/local/src
+	echo "Building $pkg"
+	CheckInstallGo
+	pushd /usr/local/src
 
 	if [ ! -d $pkg ]; then
 	    if [ $pkg = "bettercap" ]; then
@@ -59,7 +63,7 @@ for pkg in ${go_pkgs}; do
 	fi
 	figlet $pkg || true
 	echo "+ Go mod tidy $pkg"
-	pushd ${ROOTFS_DIR}/usr/local/src/$pkg
+	pushd /usr/local/src/$pkg
 	go mod tidy
 	echo "+ build $pkg started at $(date)"
 	make
@@ -77,7 +81,7 @@ for pkg in ${go_pkgs}; do
 	if [ -d ${INCOMING} ]; then
 	    echo "# Saving binary to incoming files"
 	    mkdir -p ${INCOMING}/lbin
-	    cp ${ROOTFS_DIR}/usr/local/bin/$pkg ${INCOMING}/lbin/
+	    cp /usr/local/bin/$pkg ${INCOMING}/lbin/
 	fi
 	
 	echo "- Removing $pkg source code"
@@ -87,7 +91,7 @@ for pkg in ${go_pkgs}; do
 done
 
 BETTERCAP_REPO="https://github.com/bettercap"
-BETTERCAP_DIR="${ROOTFS_DIR}/usr/local/share/bettercap"
+BETTERCAP_DIR="/usr/local/share/bettercap"
 mkdir -p ${BETTERCAP_DIR}
 
 echo "Bettercap: $(/usr/local/bin/bettercap -version || true)"
@@ -99,18 +103,21 @@ BCAP_UI_ZIPFILE="${PWNY_DIR}/files/bettercap-ui.zip"
 
 # install latest bettercap/ui release
  
-if [ -f "${BCAP_UI_ZIPFILE}" ]; then
-    echo "=== Unpacking bettercap ui tarball ${BCAP_UI_TARFILE}"
-    pushd ${BETTERCAP_DIR}
-    unzip -q ${BCAP_UI_ZIPFILE}
-    popd
-else
-    echo "+++ Downloading bettercap ui.zip"
-    pushd ${BETTERCAP_DIR}
-    curl -OL https://github.com/bettercap/ui/releases/download/v1.3.0/ui.zip
-    ls -l
-    unzip -q ui.zip && rm ui.zip
+if [ ! -d "${BETTERCAP_DIR}/ui" ]; then
+    if [ -f "${BCAP_UI_ZIPFILE}" ]; then
+	echo "=== Unpacking bettercap ui tarball ${BCAP_UI_TARFILE}"
+	pushd ${BETTERCAP_DIR}
+	unzip -q ${BCAP_UI_ZIPFILE}
+	popd
+    else
+	echo "+++ Downloading bettercap ui.zip"
+	pushd ${BETTERCAP_DIR}
+	curl -OL https://github.com/bettercap/ui/releases/download/v1.3.0/ui.zip
+	ls -l
+	unzip -q ui.zip && rm ui.zip
+    fi
 fi
+
 
 # install caplets
 # iface is specified on command line, which is correct when pwnlib is modified
