@@ -2,8 +2,16 @@
 
 echo "*=*=---*> Torch and Torchvision"
 apt-get install -y python3-pip
+pwd
 
 pushd /tmp
+ls -l
+
+# uninstall system versions
+#pip3 uninstall torch torchvision --break-system-packages
+
+source ~pwnagotchi/.venv/bin/activate
+
 if pip3 download --no-deps torchvision ; then
     echo "* Torch can be downloaded, so not building. Whew!"
     exit
@@ -14,9 +22,9 @@ else
 fi
 popd
 
-if [ -f torch-packages ]; then
+if [ -f /tmp/torch-packages ]; then
     echo "=-=-=- Installing torch apt dependencies -=-=-="
-    apt-get -y install $(cat torch-packages)
+    apt-get -y install $(cat /tmp/torch-packages)
 fi
 
 cd /usr/local/src
@@ -45,7 +53,7 @@ else
     ls -l /lib/modules
 
 
-    pip3 install -r requirements.txt --break-system-packages
+    pip3 install -r requirements.txt #--break-system-packages
 
     export USE_CUDA=OFF
     export USE_DISTRIBUTED=OFF
@@ -92,7 +100,8 @@ EOP
     time python3 setup.py bdist_wheel
 fi
 
-pip3 install dist/torch-*.whl --break-system-packages
+figlet install torch
+pip3 install dist/torch-*.whl #--break-system-packages
 
 popd
 
@@ -110,8 +119,8 @@ else
     ls -l dist/
 fi
 
-pip3 install --break-system-packages dist/torchvision-*.whl
+pip3 install dist/torchvision-*.whl
 
 popd
 
-popd
+deactivate
