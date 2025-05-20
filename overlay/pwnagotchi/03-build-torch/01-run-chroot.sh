@@ -32,7 +32,7 @@ cd /usr/local/src
 if [ ! -d pytorch ]; then
     git clone --branch v2.1.2 https://github.com/pytorch/pytorch.git --recursive
 else
-    echo "Already dun git it"
+    echo "Already dun gitted it"
 fi
 
 pushd pytorch
@@ -60,7 +60,7 @@ else
     export USE_MKLDNN=OFF
     export BUILD_TEST=OFF
     export BUILD_BINARY=OFF
-    export MAX_JOBS=4
+    export MAX_JOBS=10
     
     unset USE_QEMU
 
