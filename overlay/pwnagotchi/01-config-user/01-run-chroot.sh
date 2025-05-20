@@ -7,7 +7,7 @@ PHOME=/home/${PUSER}
 PVENV=${PHOME}/.venv
 PGROUPS=adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,render,netdev,i2c
 
-id -u pwnagotchi || useradd -c "Pwnagotchi" -p $(echo pwny1234 | openssl passwd -1 -stdin) -G ${PGROUPS} -d ${PHOME} -m ${PUSER} -k /etc/skel -s /bin/bash
+id -u pwnagotchi || useradd -c "Pwnagotchi" -p $(echo pwny1234 | openssl passwd -1 -stdin) -G ${PGROUPS} -d ${PHOME} -m ${PUSER} -k /etc/skel -s /bin/bash || true
 
 if ! grep "pwnagotchi addons" ${PHOME}/.bashrc ; then
     echo "\-> Adding pwnagotchi aliases to .bashrc"
