@@ -11,7 +11,7 @@ myrndis=${PWNY_RNDIS:-YES}                      # enable RNDIS or not
 mydeauth=${PWNY_DEAUTH:-false}                  # deauth enabled for config.toml
 mydisplay=${PWNY_DISPLAY:-displayhatmini}       # type of display for config.toml
 myspidev=${PWNY_SPIDEV:-0}
-mytouchscreen=${PWNY_TOUCHSCREEN:-NO}          # enable goodix touchscreen overlay
+mytouchscreen=${PWNY_TOUCHSCREEN:-NO}           # enable goodix touchscreen overlay
 mybluetooth=${PWNY_BLUETOOTH:-"NO"}             # host mac address for bt-tether in config.toml
 mybtipaddr=${PWNY_BTIPADDR:-"172.20.10.7"}      # pwny ip address for bt-tether
 
@@ -39,6 +39,7 @@ fi
 cd pwnagotchi
 
 uname -a
+echo "Board is ${BOARD}"
 
 if [[ "${BOARD}" == "bananapim4zero" ]]; then
     echo "Installing RPi.GPIO fork for both versions of Bananapim4zero"
@@ -47,14 +48,13 @@ else
     pip3 install RPi.GPIO
 fi
 
-echo pip3 install -r requirements.txt
+echo "+ pip3 install -r requirements.txt"
 pip3 install -r requirements.txt
 
-echo "+ Downgrading gym and stable_baselines3 for compatability"
+echo "~ Downgrading gym and stable_baselines3 for compatibility"
 pip install git+https://github.com/CeyaoZhang/gym.git@v0.21.0
 pip3 install stable_baselines3==1.8.0
 
-echo "Board is ${BOARD}"
 echo "+ 'Installing' pwnagotchi into ~pwnagotchi/.venv with symlinks"
 
 ln -sf $(pwd)/pwnagotchi /home/pwnagotchi/.venv/lib/python*/site-packages/
@@ -112,11 +112,11 @@ echo "+++++ Installing Custom Plugins +++++++"
 mkdir -p ${custom_plugins}
 
 installPlugins() {
-    repo=$1
-    dest=${2:-$(basename $repo .git)}
-    subdir=${3:-''}
-    matches=${4:-'*.py *.png'}
-    install_dest=${5:-${custom_plugins}}
+    repo=$1                              # git repo url
+    dest=${2:-$(basename $repo .git)}    # download destination under ~/git
+    subdir=${3:-''}                      # subdirectory inside repo to find plugins
+    matches=${4:-'*.py *.png'}           # glob match file to symlink into custom_plugins
+    install_dest=${5:-${custom_plugins}} # destination for symlinks if not custom_plugins dir
 
     pushd /home/pwnagotchi/git
     if [ -d $dest ]; then
@@ -374,10 +374,63 @@ main.plugins.bt-tether.devices.iphone.priority = 15
 EOC
 fi
 
-#
-# /boot
-#
+# old network server. set it to ignore wlan0 so wpa-supplicant doesn't fight with pwny
+# pwnagotchi-setup service (below) will set NetworkManager to ignore the default pwny interface
+if [ -f /etc/dhcpcd/dhcpcd.conf ]; then
+    if ! grep "pwnagotchi additions" /etc/dhcpcd/dhcpcd.conf ; then
 
+	echo "*** Set dhcpcd.conf to ignore wlan0"
+	echo "# pwnagotchi additions" >>/etc/dhcpcd/dhcpcd.conf
+	echo "denyinterfaces wlan0" >>/etc/dhcpcd/dhcpcd.conf
+    fi
+fi
+
+# First boot setup service
+# - finds default wifi interface
+#   configure NetworkManager to ignore it
+#   configure pwnagotchi to use it
+# - looks for /boot/pwny-backup.tar.gz (also in /boot/firmware)
+#   restore pwnagotchi from backup if found
+# - enables and starts bettercap, pwngrid-peer, pwnagotchi services
+# - disables itself if successful
+systemctl enable pwnagotchi-setup
+
+echo "* Fixing pwnagotchi and /root file permissions"
+chown -R pwnagotchi:pwnagotchi /home/pwnagotchi   # pwnagotchi should own its files
+chmod a+rX /root        # to make handshakes and peers directories accessible
+
+echo "Setting up /root/handshakes directory"
+mkdir -p -m 0777 /root/handshakes
+
+if ! grep "g_cdc" /etc/modules; then
+    # if g_ether isn't set up in /boot/firmware/config.txt (raspberry pi)
+    # add it to /etc/modules (armbian, debian-image-builder)
+    echo "g_cdc" >>/etc/modules
+fi
+
+
+#  _              _                  __ _      
+# | |__  ___  ___| |_   __ ___ _ _  / _(_)__ _ 
+# | '_ \/ _ \/ _ \  _| / _/ _ \ ' \|  _| / _` |
+# |_.__/\___/\___/\__| \__\___/_||_|_| |_\__, |
+#                                        |___/ 
+# /boot
+
+figlet boot
+ls -l /boot
+
+# System-specific configuration goes below here
+# - set up dtoverlays
+# - enable i2c
+# - enable SPI
+# - enable uart
+
+#  ___              _                        ___ _ 
+# | _ \__ _ ____ __| |__  ___ _ _ _ _ _  _  | _ (_)
+# |   / _` (_-< '_ \ '_ \/ -_) '_| '_| || | |  _/ |
+# |_|_\__,_/__/ .__/_.__/\___|_| |_|  \_, | |_| |_|
+#             |_|                     |__/
+#
 # /boot/firmware/config.txt on raspberry pi
 if [ -f /boot/firmware/config.txt ]; then
     figlet config.txt
@@ -402,14 +455,25 @@ EOC
 	    fi
 	    comment=''
 	fi
+
+	# the "[all]" block does not seem to work right, so duplicating everything for each board
+	
 	cat >>/boot/firmware/config.txt <<EOC
 # dwc2 for RNDIS, OTG usb. comment out for X306 usb battery hat
+[pi0]
+${comment}dtoverlay=dwc2
+
+[pi2]
+${comment}dtoverlay=dwc2
+
+[pi3]
 ${comment}dtoverlay=dwc2
 
 EOC
 
 	cat >>/boot/firmware/config.txt <<EOF
 # enable i2c and spi for screens"
+[pi0]
 dtoverlay=spi1-3cs
 dtparam=i2c1=on
 dtparam=i2c_arm=on
@@ -420,6 +484,49 @@ gpu_mem=16
 #### audio out on pins 18 and 19
 #dtoverlay=audremap,pins_18_19
 
+[pi2]
+dtoverlay=spi1-3cs
+dtparam=i2c1=on
+dtparam=i2c_arm=on
+dtparam=spi=on
+
+gpu_mem=16
+
+#### audio out on pins 18 and 19
+#dtoverlay=audremap,pins_18_19
+
+[pi3]
+dtoverlay=spi1-3cs
+dtparam=i2c1=on
+dtparam=i2c_arm=on
+dtparam=spi=on
+
+gpu_mem=16
+
+#### audio out on pins 18 and 19
+#dtoverlay=audremap,pins_18_19
+
+[pi4]
+dtoverlay=spi1-3cs
+dtparam=i2c1=on
+dtparam=i2c_arm=on
+dtparam=spi=on
+
+gpu_mem=16
+
+#### audio out on pins 18 and 19
+#dtoverlay=audremap,pins_18_19
+
+[pi5]
+dtoverlay=spi1-3cs
+dtparam=i2c1=on
+dtparam=i2c_arm=on
+dtparam=spi=on
+
+gpu_mem=16
+
+#### audio out on pins 18 and 19
+#dtoverlay=audremap,pins_18_19
 EOF
 
 	if [ $mytouchscreen != 'NO' ]; then
@@ -430,6 +537,19 @@ EOF
 
 	cat >>/boot/firmware/config.txt <<EOC
 #### touchscreen on waveshare touch e-paper
+[pi0]
+${comment}dtoverlay=goodix,interrupt=27,reset=22
+
+[pi2]
+${comment}dtoverlay=goodix,interrupt=27,reset=22
+
+[pi3]
+${comment}dtoverlay=goodix,interrupt=27,reset=22
+
+[pi4]
+${comment}dtoverlay=goodix,interrupt=27,reset=22
+
+[pi5]
 ${comment}dtoverlay=goodix,interrupt=27,reset=22
 
 EOC
@@ -442,31 +562,35 @@ EOC
     
 	cat >>/boot/firmware/config.txt <<EOC
 #### for PWM backlighting on pimoroni displayhatmini
+[pi0]
 ${comment}dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4
 
+[pi2]
+${comment}dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4
+
+[pi3]
+${comment}dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4
+
+[pi4]
+${comment}dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4
+
+[pi5]
+${comment}dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4
 EOC
     fi
     echo "ok"
 fi
 
-if ! grep "g_cdc" /etc/modules; then
-    # if g_ether isn't set up in /boot/firmware/config.txt (raspberry pi)
-    # add it to /etc/modules (armbian, debian-image-builder)
-    echo "g_cdc" >>/etc/modules
-fi
-
-if [ -f /boot/bananapiEnv.txt ]; then
-    echo "--- ???????-  Configure bananapi armbian-esque image"
-    echo
-    echo "--- ???????-   ummm.  do the dtbs here?"
-fi
-
+#     _                   _     _             
+#    / \   _ __ _ __ ___ | |__ (_) __ _ _ __  
+#   / _ \ | '__| '_ ` _ \| '_ \| |/ _` | '_ \ 
+#  / ___ \| |  | | | | | | |_) | | (_| | | | |
+# /_/   \_\_|  |_| |_| |_|_.__/|_|\__,_|_| |_|
+                                            
 # configure armbianEnv for i2c, spi and "new" wifi chip (does not seem to impact old board)
 if [ -f /boot/armbianEnv.txt ]; then
     echo "+*+*+*+*+*+ Configuring armbian +*+*+*+*+*+"
     
-    OVERLAYS="overlays=\""
-
     if [[ "$BOARD" == "bananapim4zero" ]]; then
 	echo "+-=-=- Configure bananapim4zero DTB hacks"
 	pushd /boot/dtb/allwinner  
@@ -505,11 +629,15 @@ EOF
     echo	
 fi
 
-# Debian Image Builder stuff
-figlet boot
-ls -l /boot
-sleep 5
+#   ___      _    _             ___                       ___      _ _    _         
+#  |   \ ___| |__(_)__ _ _ _   |_ _|_ __  __ _ __ _ ___  | _ )_  _(_) |__| |___ _ _ 
+#  | |) / -_) '_ \ / _` | ' \   | || '  \/ _` / _` / -_) | _ \ || | | / _` / -_) '_|
+#  |___/\___|_.__/_\__,_|_||_| |___|_|_|_\__,_\__, \___| |___/\_,_|_|_\__,_\___|_|  
+#                                             |___/                                 
+# Debian Image Builder configuration
+#
 
+# this might need to be done elsewhere. i don't know that /boot/extlinux exists yet
 EXTLINUXCONF=/boot/extlinux/extlinux.conf
 if [ -f ${EXTLINUXCONF} ]; then
     echo "Use Predictable network names"
@@ -532,25 +660,3 @@ EOF
     mv usb0-cfg usb1-cfg
     sed -i 's/usb0/usb1/g' usb1-cfg
 fi
-
-# old network server. set it to ignore wlan0 so wpa-supplicant doesn't fight with pwny
-if [ -d /etc/dhcpcd ]; then
-    if ! grep "pwnagotchi additions" /etc/dhcpcd/dhcpcd.conf ; then
-
-	echo "*** Set dhcpcd.conf to ignore wlan0"
-	echo "# pwnagotchi additions" >>/etc/dhcpcd/dhcpcd.conf
-	echo "denyinterfaces wlan0" >>/etc/dhcpcd/dhcpcd.conf
-    fi
-fi
-
-# services do not need to be started by the installation.  First boot will enable them
-# after configuring
-#systemctl enable bettercap pwngrid-peer pwnagotchi
-systemctl enable pwnagotchi-setup
-
-echo "* Fixing pwnagotchi and /root file permissions"
-chown -R pwnagotchi:pwnagotchi /home/pwnagotchi
-chmod a+rX /root
-echo "Setting up /root/handshakes directory"
-mkdir -p -m 0777 /root/handshakes
-
