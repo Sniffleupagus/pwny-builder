@@ -70,7 +70,7 @@ sed -i "s/^managed=false/managed=true/" /etc/NetworkManager/NetworkManager.conf
 if [ ! "${NO_CLEANUP}" ]; then
     echo "- Removing unnecessary packages"
     apt -y remove binutils-arm-none-eabi gcc-arm-none-eabi  # for nexmon firmware
-    apt autoremove
+    apt -y autoremove
     echo "- Removing golang"
     rm -rf /usr/local/go      # only needed to build bettercap and pwngrid
     rm -rf /root/go
