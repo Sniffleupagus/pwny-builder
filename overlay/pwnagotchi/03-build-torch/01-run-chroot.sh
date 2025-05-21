@@ -15,6 +15,12 @@ source ~pwnagotchi/.venv/bin/activate
 if pip3 download --no-deps torchvision ; then
     echo "* Torch can be downloaded, so not building. Whew!"
     exit
+elif [ -f /tmp/torch-*.whl ]; then
+    echo "* Installing pre-compiled packages from /tmp"
+    pip3 install /tmp/torch-*.whl
+    pip3 install /tmp/torchvision-*.whl
+    deactivate
+    exit
 else
     echo "*    No precompiled torchvision available."
     echo "+    BUILDING from source"
