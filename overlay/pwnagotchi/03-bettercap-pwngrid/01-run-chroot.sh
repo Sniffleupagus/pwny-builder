@@ -45,8 +45,10 @@ export go_pkgs="bettercap pwngrid"
 for pkg in ${go_pkgs}; do
     echo " --> Checking for $pkg"
     if [ -f  /usr/local/bin/$pkg ] ; then
+	echo -n "Exists: "
 	ls -l  /usr/local/bin/$pkg
     elif restore_pwny_artifacts $pkg; then
+	echo -n "Installed artifact:"
 	ls -l /usr/local/bin/$pkg
     elif [ -f ${PWNY_DIR}/files/${BOARD}/usr/local/bin/$pkg ]; then
 	echo "+-> Installing precompiled $pkg"
@@ -92,7 +94,7 @@ for pkg in ${go_pkgs}; do
 	fi
 	
 	echo "- Removing $pkg source code"
-	echo rm -rf $pkg
+	rm -rf $pkg
 	popd
     fi
 done
