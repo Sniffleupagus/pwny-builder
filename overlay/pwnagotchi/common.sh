@@ -24,7 +24,7 @@ save_pwny_artifact () {
     
     echo "+ Saving artifact ${file} to ${dir}"
     mkdir -p ${PWNY_BUILD_ARTIFACTS}/${dir}
-    cp ${file} ${PWNY_BUILD_ARTIFACTS}/${dir}
+    rsync -av ${file} ${PWNY_BUILD_ARTIFACTS}/${dir}
 }
 
 restore_pwny_artifacts () {
