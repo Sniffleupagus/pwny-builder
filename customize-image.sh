@@ -102,8 +102,8 @@ Main() {
 	cd ${0%/*}
 	#ls -l /tmp/overlay/pwnagotchi/
 	export PWNY_DIR=/tmp/overlay/pwnagotchi
-	#printenv
-
+	export PI_GEN=armbian-build
+	printenv
 
 	echo "===== apt update ====="
 	apt-get -yq --allow-releaseinfo-change update
