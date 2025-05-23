@@ -1,6 +1,15 @@
 #!/bin/bash -e
 
+ls -l /root/overlay/pwnagotchi
 . /root/overlay/pwnagotchi/common.sh
+
+echo "Rootfs: ${ROOTFS_DIR}"
+echo "Overlay: ${OVERLAY_DIR}"
+echo "PWNY_BUILD_ART: ${PWNY_BUILD_ARTIFACTS}"
+pwd
+ls -l /root/overlay || true
+
+ls -l /root/overlay/pwnagotchi
 
 # install nexmon
 NEXMON_REPO=https://github.com/Sniffleupagus/nexmon.git
@@ -18,27 +27,21 @@ echo ${PWNY_BUILD_ARTIFACTS}
 
 ###########################
 
-cd /usr/local/src
+# install dkms alone, without installing host-OS linux headers
+apt-get -yq install --no-install-recommends dkms
+
 
 BUILT_ONE=false
 
 NEXMON_DKMS_ROOT="/usr/src/brcmfmac-nexmon-dkms"
 pushd /usr/src
-if [ ! -d brcmfmac-nexmon-dkms ]; then
-    git clone ${NEXMON_DKMS_REPO}
+if [ ! -d ${NEXMON_DKMS_ROOT} ]; then
+    git clone ${NEXMON_DKMS_REPO} ${NEXMON_DKMS_ROOT}
     ln -s brcmfmac-nexmon-dkms brcmfmac-nexmon-dkms-6.6
 fi
-pushd ${NEXMON_DKMS_ROOT}
-
-# install dkms alone, without installing host-OS linux headers
-apt-get -yq install --no-install-recommends dkms
+popd
 
 # build DKMS kernel modules
-echo "/lib/modules"
-uname -a
-ls -l /lib/modules || true
-echo "ROOTFS_DIR = ${ROOTFS_DIR}"
-
 if [ -d "${ROOTFS_DIR}" ]; then
     KERNELS=${ROOTFS_DIR}/lib/modules
 else
@@ -46,7 +49,9 @@ else
 fi
 ls -l ${KERNELS}
 
-figlet nexmon
+figlet nexmon dkms
+
+pushd ${NEXMON_DKMS_ROOT}
 for m in $(cd ${KERNELS} ; ls); do
     if [ -d ${KERNELS}/$m/build ]; then
 	mod=$m
@@ -77,12 +82,13 @@ popd
 echo "+ Holding firmware-brcm80211 to avoid updating and overwriting nexmon custom firmware"
 apt-mark hold firmware-brcm80211
 
+figlet nexmon firmware
+
 # look for nexmon artifacts
-if pushd "${PWNY_BUILD_ARTIFACTS}/nexmon" 2>/dev/null; then
-    figlet artifacts
-    tar -czf - . | tar -C / -tzf -
-    printenv
-    popd
+echo "ARTS: ${PWNY_BUILD_ARTIFACTS}"
+if restore_pwny_artifacts nexmon; then
+#if pushd "${PWNY_BUILD_ARTIFACTS}/nexmon" 2>/dev/null; then
+   echo "+ Nexmon artifacts installed"
 else
     echo "* No nexmon artifacts found"
 fi
@@ -95,7 +101,7 @@ fi
 nexmon_unpacked=0
 UnpackNexmonSource () {
     # download or unpack nexmon
-    NEXMON_TARFILE="${OVERLAY_DIR}/pwnagotchi/files/nexmon-dev.zip"
+    NEXMON_TARFILE="${OVERLAY_DIR}/files/nexmon-dev.zip"
     pushd /usr/local/src
     if [ ! -d nexmon ]; then
 	if [ -f "${NEXMON_TARFILE}" ]; then
@@ -127,7 +133,8 @@ UnpackNexmonSource () {
 if [ ! -f /usr/bin/nexutil ]; then
     echo "+ Building nexutil"
     UnpackNexmonSource
-    pushd utilities/nexutil
+    pwd
+    pushd /usr/local/src/nexmon/utilities/nexutil
     make
     make install
     BUILT_ONE=true
@@ -135,6 +142,7 @@ if [ ! -f /usr/bin/nexutil ]; then
 else
     ls -l /usr/bin/nexutil
 fi
+
 save_pwny_artifact /usr/bin/nexutil nexmon/usr/bin
 
 # build Nexmon patched firmware, using last kernel version "mod"
@@ -143,8 +151,7 @@ export KERNEL_REV=$(echo $mod | sed 's/\([0-9]\+\.[0-9]\+\)\..*/\1/')
 for p in $NEXMON_PATCHES; do
     echo "Loop $p"
     UnpackNexmonSource
-
-    pushd nexmon/patches/$p/nexmon
+    pushd /usr/local/src/nexmon/patches/$p/nexmon
 
     sed -i -e 's#^KERNEL_VERSION = .*$#KERNEL_VERSION = \$(if $(KERNEL_REV),\$(KERNEL_REV),\$(shell uname -r | sed "s/\\([0-9]\\+\\.[0-9]\\+\\)\\..*/\\1/"))#' Makefile
     
@@ -174,7 +181,7 @@ for p in $NEXMON_PATCHES; do
 
     popd
 done
-popd
+
 
 # system specific configuration
 if [ "${BOARD}" == "bananapim4zero" ]; then
@@ -211,14 +218,22 @@ else
 fi
 
 (echo NEXMON BRCMFMAC firmware installed; date) >/usr/lib/firmware/NEXMON_INSTALLED
+save_pwny_artifact /usr/lib/firmware/NEXMON_INSTALLED nexmon/usr/lib/firmware
 
-if ${BUILT_ONE} ; then
-    echo " *> Saving all nexmon products"
-    INCOMING=/tmp/pwny_parts
-    mkdir -p ${INCOMING}
-    pushd /
-    tar --ignore-failed-read -cvvzf ${INCOMING}/nexmon_backup.tar.gz \
-	lib/modules/*/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac \
-	lib/firmware/brcm/brcmfmac43{430,455,436,436s}-sdio.bin usr/bin/nexutil || true
-    popd
+#if ${BUILT_ONE} ; then
+#    echo " *> Saving all nexmon products"
+#    INCOMING=/tmp/pwny_parts
+#    mkdir -p ${INCOMING}
+#    pushd /
+#    tar --ignore-failed-read -cvvzf ${INCOMING}/nexmon_backup.tar.gz \
+#	lib/modules/*/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac \
+#	lib/firmware/brcm/brcmfmac43{430,455,436,436s}-sdio.bin usr/bin/nexutil || true
+#    popd
+#fi
+
+if [ ! "${NO_CLEANUP}" ]; then
+    echo "- Removing nexmon source tree"
+    rm -rf /usr/local/src/nexmon
+else
+    figlet keeping tree
 fi
