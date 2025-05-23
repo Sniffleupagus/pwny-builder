@@ -57,4 +57,10 @@ function post_customize_image__backup_new_artifacts() {
     if ls ${SDCARD}/tmp/pwnagotchi.*; then
 	cp ${SDCARD}/tmp/pwnagotchi.* /tmp
     fi
+
+    if ls ${SDCARD}/root/artifacts; then
+	pushd userpatches/overlay/pwnagotchi
+	mkdir -p artifacts
+	rsync -av ${SDCARD}/root/artifacts/ artifacts
+    fi
 }
