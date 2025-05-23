@@ -1,0 +1,29 @@
+#!/bin/bash -e
+
+echo "Copying files from $(pwd)"
+echo "/tmp/overlay:
+ls -lR /tmp/overlay || true
+
+pushd ../03-build-torch
+    if [ -f torch-packages]; then
+        figlet torch-packages
+	ls -l torch-packages
+        cp torch-packages ${ROOTFS_DIR}/tmp/torch-packages
+    fi
+
+    if [ -d INCOMING_files ]; then
+        cp INCOMING_files/* ${ROOTFS_DIR}/tmp
+    fi
+popd
+
+pushd ..
+    if [ -d files ]; then
+        cp -rp files ${ROOTFS_DIR}/tmp/overlay/pwnagotchi
+    fi
+popd
+
+ls -l  ${ROOTFS_DIR}/tmp/overlay/pwnagotchi
+
+ls -ltrh ${ROOTFS_DIR}/tmp
+
+false
