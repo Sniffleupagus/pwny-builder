@@ -78,5 +78,5 @@ if [ ! "${NO_CLEANUP}" ]; then
     rm -rf /root/.cache
     rm -rf /var/cache/apt
     echo "- Removing source code from /usr/local/src"
-    #rm -rf /usr/local/src/*
+    rm -rf /usr/local/src/*
 fi
