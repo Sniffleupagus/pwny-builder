@@ -92,6 +92,8 @@ Main() {
 	echo
 	echo "!!! Beginning Pwnagotchi Build !!!"
 	echo "Release: $1, Linux $2, Board $3, Desktop $4"
+	export RELEASE=$1
+	export BOARD=$3
 	# this is in the chroot, so build the pwny
 	echo "# arguments called with ---->  ${@}     "
 	echo "# path to me --------------->  ${0}     "
@@ -103,12 +105,17 @@ Main() {
 	#ls -l /tmp/overlay/pwnagotchi/
 	export PWNY_DIR=/tmp/overlay/pwnagotchi
 	export PI_GEN=armbian-build
+	export OVERLAY_DIR=/tmp/overlay/pwnagotchi
+	export PWNY_BUILD_ARTIFACTS=${PWNY_BUILD_ARTIFACTS:-"/root/artifacts/armbian-build/$3/$1"}
+	export PWNY_ARTIFACT_SUB=${PWNY_ARTIFACT_SUB:-"armbian-build/$3/$1"}
+	ln -s /tmp/overlay /root/overlay   # make /tmp/overlay/pwnagotchi/common.sh accessible
 	printenv
 
 	echo "===== apt update ====="
 	apt-get -yq --allow-releaseinfo-change update
 	echo "===== apt upgrade ====="
 	if [ "${DO_APT_UPGRADE:-'YES'}" == "YES" ]; then
+	    echo "Apt uprade"
 	    apt-get -yq upgrade $(cat ${p})
 	fi
 
@@ -120,6 +127,7 @@ Main() {
 	done
 
 	echo "===== pwnagotchi scripts ====="
+	# all of it happens in chroot, so just execute all of the scripts in order and hope for the best
 	for s in $(find . -name '[0-9][0-9]-*.sh' | sort -V ); do
 	    echo "=---> $s" | tee -a ${PWNLOGFILE}
 	    pushd $(dirname $s)
