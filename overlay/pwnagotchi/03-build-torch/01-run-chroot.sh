@@ -1,11 +1,17 @@
 #!/bin/bash -e
 
+. /root/overlay/pwnagotchi/common.sh
+
 echo "*=*=---*> Torch and Torchvision"
 apt-get install -y python3-pip
 pwd
 
 pushd /tmp
 ls -l
+
+figlet torch
+echo "PBA: ${PWNY_BUILD_ARTIFACTS}"
+ls -l  ${OVERLAY_DIR}/artifacts/${PWNY_ARTIFACT_SUB}/
 
 # uninstall system versions
 #pip3 uninstall torch torchvision --break-system-packages
@@ -15,8 +21,9 @@ source ~pwnagotchi/.venv/bin/activate
 if pip3 download --no-deps torchvision ; then
     echo "* Torch can be downloaded, so not building. Whew!"
     exit
-elif [ -d ${PWNY_BUILD_ARTIFACTS}/torch ]; then
-    pushd ${PWNY_BUILD_ARTIFACTS}/torch
+elif [ -d ${OVERLAY_DIR}/artifacts/${PWNY_ARTIFACT_SUB}/torch ]; then
+    echo "+ Installing torch and vision from artifacts"
+    pushd ${OVERLAY_DIR}/artifacts/${PWNY_ARTIFACT_SUB}/torch
     pip3 install ./torch-*.whl
     pip3 install ./torchvision-*.whl
     deactivate
@@ -33,6 +40,8 @@ else
     echo "!    This will take a while"
 fi
 popd
+
+false
 
 if [ -f ${OVERLAY_DIR}/03-build-torch/torch-packages ]; then
     echo "=-=-=- Installing torch apt dependencies -=-=-="
