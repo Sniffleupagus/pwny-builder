@@ -1,5 +1,7 @@
 #!/bin/bash -e
 
+. /root/overlay/pwnagotchi/common.sh
+
 export PATH=$PATH:/usr/local/go/bin
 
 INCOMING=$(pwd)/incoming
@@ -44,6 +46,8 @@ for pkg in ${go_pkgs}; do
     echo " --> Checking for $pkg"
     if [ -f  /usr/local/bin/$pkg ] ; then
 	ls -l  /usr/local/bin/$pkg
+    elif restore_pwny_artifacts $pkg; then
+	ls -l /usr/local/bin/$pkg
     elif [ -f ${PWNY_DIR}/files/${BOARD}/usr/local/bin/$pkg ]; then
 	echo "+-> Installing precompiled $pkg"
 	cp -rp ${PWNY_DIR}/files/${BOARD}/usr/local/bin/$pkg /usr/local/bin
@@ -76,6 +80,9 @@ for pkg in ${go_pkgs}; do
 	    echo "---> backing up $pkg for next build"
 	    mkdir -p /tmp/pwny_parts/usr/local/bin
 	    cp /usr/local/bin/$pkg /tmp/pwny_parts/usr/local/bin
+
+	    # new way
+	    save_pwny_artifact /usr/local/bin/$pkg $pkg/usr/local/bin/
 	fi
 
 	if [ -d ${INCOMING} ]; then
@@ -97,8 +104,6 @@ mkdir -p ${BETTERCAP_DIR}
 echo "Bettercap: $(/usr/local/bin/bettercap -version || true)"
 echo "Pwngrid: $(/usr/local/bin/pwngrid -version || true)"
 
-pushd /home/pwnagotchi/git
-
 BCAP_UI_ZIPFILE="${PWNY_DIR}/files/bettercap-ui.zip"
 
 # install latest bettercap/ui release
@@ -115,22 +120,28 @@ if [ ! -d "${BETTERCAP_DIR}/ui" ]; then
 	curl -OL https://github.com/bettercap/ui/releases/download/v1.3.0/ui.zip
 	ls -l
 	unzip -q ui.zip && rm ui.zip
+	popd
     fi
 fi
 
 
 # install caplets
-# iface is specified on command line, which is correct when pwnlib is modified
-#     setting the iface in the caplet is not needed
-# webui can be active during AUTO, too, with no issues
 echo "+++ Installing caplets"
-pushd /tmp
-git clone https://github.com/bettercap/caplets.git
+
+pushd /usr/local/src
+
+if [ ! -d caplets ]; then
+    git clone https://github.com/bettercap/caplets.git
+fi
 cd caplets
 sudo make install
 popd
+
+# fix caplets
+# - iface is specified on command line, which is correct when pwnlib is modified
+#      setting the iface in the caplet is not needed
+# - webui can be active during AUTO, too, with no issues
 pushd ${BETTERCAP_DIR}
-#/usr/local/bin/bettercap -caplets-path ${BETTERCAP_DIR} -eval "caplets.update -iface lo ; quit" || true
 cd caplets
 if [[ -f pwnagotchi-manual.cap ]]; then
     echo "~ Fixing caplets to not change interface, and webui always active:"
@@ -148,7 +159,5 @@ else
     echo "No caplet to fix"
     ls -l
 fi
-popd # caplets
-
 
 popd # BETTERCAP_DIR
