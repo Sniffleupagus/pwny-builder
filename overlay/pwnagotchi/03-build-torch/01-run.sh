@@ -7,8 +7,4 @@ if [ -f torch-packages]; then
     cp torch-packages ${ROOTFS_DIR}/tmp/torch-packages
 fi
 
-if [ -d INCOMING_files ]; then
-    cp INCOMING_files/* ${ROOTFS_DIR}/tmp
-fi
-
 ls -ltrh ${ROOTFS_DIR}/tmp

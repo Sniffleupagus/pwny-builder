@@ -15,6 +15,12 @@ source ~pwnagotchi/.venv/bin/activate
 if pip3 download --no-deps torchvision ; then
     echo "* Torch can be downloaded, so not building. Whew!"
     exit
+elif [ -d ${PWNY_BUILD_ARTIFACTS}/torch ]; then
+    pushd ${PWNY_BUILD_ARTIFACTS}/torch
+    pip3 install ./torch-*.whl
+    pip3 install ./torchvision-*.whl
+    deactivate
+    exit
 elif [ -f /tmp/torch-*.whl ]; then
     echo "* Installing pre-compiled packages from /tmp"
     pip3 install /tmp/torch-*.whl
@@ -28,7 +34,7 @@ else
 fi
 popd
 
-if [ -f /tmp/torch-packages ]; then
+if [ -f ${OVERLAY_DIR}/03-build-torch/torch-packages ]; then
     echo "=-=-=- Installing torch apt dependencies -=-=-="
     apt-get -y install $(cat /tmp/torch-packages)
 fi
