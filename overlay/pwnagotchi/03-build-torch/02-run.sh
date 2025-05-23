@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-. /root/overlay/pwnagotchi/common.sh
+. ../common.sh
 
 echo "Copying files from $(pwd)"
 
