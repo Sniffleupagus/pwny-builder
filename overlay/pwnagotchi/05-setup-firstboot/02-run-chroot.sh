@@ -4,6 +4,8 @@
 #echo "Skipping AIC8800 Driver"
 #exit
 
+figlet aic8800
+ls -l /lib/modules
 
 echo "+++ Installing aic8800 Wifi USB drivers"
 AIC8800_TYPE=${AIC8800_TYPE:-"usb"}
@@ -41,4 +43,23 @@ case "${AIC8800_TYPE}" in
 esac
 wget ${aic8800_firmware_url} -P /home/pwnagotchi/
 cd /home/pwnagotchi
-dpkg --install ./${aic8800_dkms_file_name} ./aic8800-firmware_${latest_version}_all.deb || true
+echo "+ Building for $(dpkg --print-architecture) arch"
+
+dpkg --install ./aic8800-firmware_${latest_version}_all.deb || true
+dpkg --unpack ./${aic8800_dkms_file_name}
+
+pushd /usr/src/aic8800-usb-*
+. dkms.conf
+
+for m in $(cd /lib/modules ; ls); do
+    if [ -d /lib/modules/$m/build ]; then
+	echo "* Building ${PACKAGE_NAME} for $m"
+	if dkms build -m ${PACKAGE_NAME} -v ${PACKAGE_VERSION} -k $m ; then
+	    echo "+ Installing Driver for $m"
+	    dkms install -m ${PACKAGE_NAME} -v ${PACKAGE_VERSION} -k $m --force
+	fi
+    fi
+done
+
+figlet done
+sleep 10
