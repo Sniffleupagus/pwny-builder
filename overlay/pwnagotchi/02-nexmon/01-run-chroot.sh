@@ -93,11 +93,6 @@ else
     echo "* No nexmon artifacts found"
 fi
 
-if [ -f /usr/lib/firmware/NEXMON_INSTALLED ]; then
-    echo "Nexmon firmware already installed"
-    exit 0
-fi
-
 nexmon_unpacked=0
 UnpackNexmonSource () {
     # download or unpack nexmon
@@ -145,43 +140,46 @@ fi
 
 save_pwny_artifact /usr/bin/nexutil nexmon/usr/bin
 
-# build Nexmon patched firmware, using last kernel version "mod"
-echo "* --> Building patched firmware"
-export KERNEL_REV=$(echo $mod | sed 's/\([0-9]\+\.[0-9]\+\)\..*/\1/')
-for p in $NEXMON_PATCHES; do
-    echo "Loop $p"
-    UnpackNexmonSource
-    pushd /usr/local/src/nexmon/patches/$p/nexmon
+if [ -f /usr/lib/firmware/NEXMON_INSTALLED ]; then
+    echo "Nexmon firmware already installed"
+else
+    # build Nexmon patched firmware, using last kernel version "mod"
+    echo "* --> Building patched firmware"
+    export KERNEL_REV=$(echo $mod | sed 's/\([0-9]\+\.[0-9]\+\)\..*/\1/')
+    for p in $NEXMON_PATCHES; do
+	echo "Loop $p"
+	UnpackNexmonSource
+	pushd /usr/local/src/nexmon/patches/$p/nexmon
 
-    sed -i -e 's#^KERNEL_VERSION = .*$#KERNEL_VERSION = \$(if $(KERNEL_REV),\$(KERNEL_REV),\$(shell uname -r | sed "s/\\([0-9]\\+\\.[0-9]\\+\\)\\..*/\\1/"))#' Makefile
+	sed -i -e 's#^KERNEL_VERSION = .*$#KERNEL_VERSION = \$(if $(KERNEL_REV),\$(KERNEL_REV),\$(shell uname -r | sed "s/\\([0-9]\\+\\.[0-9]\\+\\)\\..*/\\1/"))#' Makefile
     
-    # instead of building the module, let it find the local file
-    # actual module is built with dkms above
-    echo "    ===---> make clean $p"
-    QEMU_UNAME=$mod KERNEL_REV=${KERNEL_REV} make clean-firmware || true
-    RAMFILE=$(cat ${NEXMON_ROOT}/firmwares/$p/definitions.mk | grep RAM_FILE | cut -d = -f 2)
-    echo "    ===---> patch firmware $p: ${RAMFILE}"
-    make ${RAMFILE}
-    echo "    ===+++> install patched firmware $p/${RAMFILE}"
-    # use invalid kernel number so install-firmware
-    # skips module unloading and loading
+	# instead of building the module, let it find the local file
+	# actual module is built with dkms above
+	echo "    ===---> make clean $p"
+	QEMU_UNAME=$mod KERNEL_REV=${KERNEL_REV} make clean-firmware || true
+	RAMFILE=$(cat ${NEXMON_ROOT}/firmwares/$p/definitions.mk | grep RAM_FILE | cut -d = -f 2)
+	echo "    ===---> patch firmware $p: ${RAMFILE}"
+	make ${RAMFILE}
+	echo "    ===+++> install patched firmware $p/${RAMFILE}"
+	# use invalid kernel number so install-firmware
+	# skips module unloading and loading
 
-    # patch the Makefile to not build brcmfmac.ko, just the firmware
-    sed -i -e '/^install-firmware:.* brcmfmac.ko/s/ brcmfmac.ko//' Makefile
+	# patch the Makefile to not build brcmfmac.ko, just the firmware
+	sed -i -e '/^install-firmware:.* brcmfmac.ko/s/ brcmfmac.ko//' Makefile
 
-    QEMU_UNAME=4.20.69 make install-firmware || true
+	QEMU_UNAME=4.20.69 make install-firmware || true
 
-    grep -A 7 install-firmware Makefile
-    BUILT_ONE=true
-    echo ${RAMFILE}
-    ls -l ${RAMFILE}
-    if [[ ${RAMFILE} == brcmfmac* ]]; then
-	save_pwny_artifact ${RAMFILE} nexmon/lib/firmware/brcm
-    fi
+	grep -A 7 install-firmware Makefile
+	BUILT_ONE=true
+	echo ${RAMFILE}
+	ls -l ${RAMFILE}
+	if [[ ${RAMFILE} == brcmfmac* ]]; then
+	    save_pwny_artifact ${RAMFILE} nexmon/lib/firmware/brcm
+	fi
 
-    popd
-done
-
+	popd
+    done
+fi
 
 # system specific configuration
 if [ "${BOARD}" == "bananapim4zero" ]; then
@@ -214,6 +212,13 @@ else
 	echo -n "Link 43430->43436s exists: "
 	ls -l /usr/lib/firmware/brcm/brcmfmac43436s-sdio.bin
     fi
+
+    blobfile="/lib/firmware/cypress/brcmfmac43430-sdio.clm_blob"
+    if [ -f $blobfile ]; then
+	echo "- Removing $blobfile"
+	rm $blobfile
+    fi
+
     save_pwny_artifact /usr/lib/firmware/brcm/brcmfmac43436s-sdio.bin nexmon/usr/lib/firmware/brcm
 fi
 
