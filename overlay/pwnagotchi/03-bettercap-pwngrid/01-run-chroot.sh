@@ -68,7 +68,9 @@ for pkg in ${go_pkgs}; do
 	    fi
 	fi
 	figlet $pkg || true
-	echo "+ Go mod tidy $pkg"
+	# if go mod tidy fails, try setting up a goproxy https://github.com/goproxy/goproxy
+	#       and/or set GOSUMDB=off when running the build
+	echo "+ GOPROXY=${GOPROXY} GOSUMDB=${GOSUMDB} go mod tidy $pkg"
 	pushd /usr/local/src/$pkg
 	go mod tidy
 	echo "+ build $pkg started at $(date)"
@@ -88,7 +90,7 @@ for pkg in ${go_pkgs}; do
 	fi
 
 	if [ -d ${INCOMING} ]; then
-	    echo "# Saving binary to incoming files"
+	    echo "+ Saving binary to incoming files"
 	    mkdir -p ${INCOMING}/lbin
 	    cp /usr/local/bin/$pkg ${INCOMING}/lbin/
 	fi
@@ -101,7 +103,7 @@ done
 
 BETTERCAP_REPO="https://github.com/bettercap"
 BETTERCAP_DIR="/usr/local/share/bettercap"
-mkdir -p ${BETTERCAP_DIR}
+mkdir -p "${BETTERCAP_DIR}"
 
 echo "Bettercap: $(/usr/local/bin/bettercap -version || true)"
 echo "Pwngrid: $(/usr/local/bin/pwngrid -version || true)"
