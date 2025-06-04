@@ -44,7 +44,7 @@ restore_pwny_artifacts () {
 	#cp -rp ./* /
 	#rsync -av . /
 	for f in $(find . -type f); do
-	    echo "Installing ${PWNY_ARTIFACT_SUB}/$f"
+	    echo "Installing artifact ${PWNY_ARTIFACT_SUB}/$f"
 	    mkdir -p /$(dirname $f)
 	    cp $f /$f
 	done
@@ -54,7 +54,7 @@ restore_pwny_artifacts () {
 	#tar -cf - . | tar -C / -xvf -
 	#cp -rp ./* /
 	for f in $(find . -type f); do
-	    echo "Installing ${PWNY_ARTIFACT_SUB}/$f"
+	    echo "Installing artifact ${PWNY_ARTIFACT_SUB}/$f"
 	    mkdir -p /$(dirname $f)
 	    cp $f /$f
 	done
