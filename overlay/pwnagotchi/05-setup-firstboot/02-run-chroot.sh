@@ -5,7 +5,6 @@
 #exit
 
 figlet aic8800
-ls -l /lib/modules
 
 echo "+++ Installing aic8800 Wifi USB drivers"
 AIC8800_TYPE=${AIC8800_TYPE:-"usb"}
@@ -46,7 +45,7 @@ cd /home/pwnagotchi
 echo "+ Building for $(dpkg --print-architecture) arch"
 
 dpkg --install ./aic8800-firmware_${latest_version}_all.deb || true
-dpkg --unpack ./${aic8800_dkms_file_name}
+dpkg --install ./${aic8800_dkms_file_name} || true
 
 pushd /usr/src/aic8800-usb-*
 . dkms.conf
@@ -61,5 +60,3 @@ for m in $(cd /lib/modules ; ls); do
     fi
 done
 
-figlet done
-sleep 10
