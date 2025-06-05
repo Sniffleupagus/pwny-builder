@@ -35,6 +35,10 @@ if [ ! -d pwnagotchi ]; then
     else
 	git clone ${pwnyrepo} pwnagotchi	
     fi
+else
+    cd pwnagotchi
+    git pull || true
+    cd ..
 fi
 cd pwnagotchi
 
