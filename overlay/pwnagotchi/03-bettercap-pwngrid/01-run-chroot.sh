@@ -17,15 +17,20 @@ CheckInstallGo () {
 	export FOUNDARCH=amd64
     fi
 
-    export go_version=$(curl -sL 'https://golang.org/VERSION?m=text' | head -1)
+    which curl
+    wget -q -O - 'https://golang.org/VERSION?m=text'
 
+    export go_version=$(wget -q -O - 'https://golang.org/VERSION?m=text' | head -1)
+
+    echo "Go version: ${go_version}"
+    
     FILE=${go_version}.linux-${FOUNDARCH}.tar.gz
 
-    if !  /usr/local/go/bin/go version | grep ${go_version}; then
+    if !  /usr/local/go/bin/go version | grep "${go_version}"; then
 	echo "+ Installing Golang $FILE"
 
 	pushd /tmp
-	if curl -sOL "https://go.dev/dl/${FILE}"; then
+	if wget -q "https://go.dev/dl/${FILE}"; then
 	    rm -rf /usr/local/go
 	    ls -l ${FILE}
 	    tar -C /usr/local -xzf "${FILE}"
