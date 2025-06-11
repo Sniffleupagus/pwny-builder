@@ -1,15 +1,6 @@
 #!/bin/bash -e
 
-ls -l /root/overlay/pwnagotchi
 . /root/overlay/pwnagotchi/common.sh
-
-echo "Rootfs: ${ROOTFS_DIR}"
-echo "Overlay: ${OVERLAY_DIR}"
-echo "PWNY_BUILD_ART: ${PWNY_BUILD_ARTIFACTS}"
-pwd
-ls -l /root/overlay || true
-
-ls -l /root/overlay/pwnagotchi
 
 # install nexmon
 NEXMON_REPO=https://github.com/Sniffleupagus/nexmon.git
@@ -29,7 +20,6 @@ echo ${PWNY_BUILD_ARTIFACTS}
 
 # install dkms alone, without installing host-OS linux headers
 apt-get -yq install --no-install-recommends dkms
-
 
 BUILT_ONE=false
 
@@ -213,11 +203,14 @@ else
 	ls -l /usr/lib/firmware/brcm/brcmfmac43436s-sdio.bin
     fi
 
-    blobfile="/lib/firmware/cypress/brcmfmac43430-sdio.clm_blob"
-    if [ -f $blobfile ]; then
-	echo "- Removing $blobfile"
-	rm $blobfile
-    fi
+    for blobfile in /lib/firmware/cypress/cyfmac43430-sdio.clm_blob \
+		    /lib/firmware/brcm/brcmfmac43430-sdio.clm_blob \
+		    ; do
+	if [ -e $blobfile -o -h $blobfile ]; then
+	    echo "- Removing $blobfile"
+	    rm $blobfile
+	fi
+    done
 
     save_pwny_artifact /usr/lib/firmware/brcm/brcmfmac43436s-sdio.bin nexmon/usr/lib/firmware/brcm
 fi
