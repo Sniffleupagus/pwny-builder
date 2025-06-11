@@ -11,7 +11,7 @@ AIC8800_TYPE=${AIC8800_TYPE:-"usb"}
 
 [[ -z $AIC8800_TYPE ]] && return 0
 api_url="https://api.github.com/repos/radxa-pkg/aic8800/releases/latest"
-latest_version=$(curl -s "${api_url}" | jq -r '.tag_name')
+latest_version=$(wget -q -O - "${api_url}" | jq -r '.tag_name')
 aic8800_firmware_url="https://github.com/radxa-pkg/aic8800/releases/download/${latest_version}/aic8800-firmware_${latest_version}_all.deb"
 aic8800_pcie_url="https://github.com/radxa-pkg/aic8800/releases/download/${latest_version}/aic8800-pcie-dkms_${latest_version}_all.deb"
 aic8800_sdio_url="https://github.com/radxa-pkg/aic8800/releases/download/${latest_version}/aic8800-sdio-dkms_${latest_version}_all.deb"
