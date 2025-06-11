@@ -11,7 +11,7 @@ ls -l
 
 figlet torch
 echo "PBA: ${PWNY_BUILD_ARTIFACTS}"
-ls -l  ${OVERLAY_DIR}/artifacts/${PWNY_ARTIFACT_SUB}/
+ls -l  ${OVERLAY_DIR}/artifacts/${PWNY_ARTIFACT_SUB}/ || true
 
 # uninstall system versions
 #pip3 uninstall torch torchvision --break-system-packages
