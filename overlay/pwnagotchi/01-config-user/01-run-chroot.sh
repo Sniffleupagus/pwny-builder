@@ -47,8 +47,11 @@ fi
 
 mkdir -p ${PHOME}/git
 
-echo "+++ Set up venv in ${PVENV}"
+if [ ! -d ${PVENV} ]; then
+    echo "+++ Set up venv in ${PVENV}"
 
-python3 -m venv ${PVENV} --system-site-packages
+    python3 -m venv ${PVENV} --system-site-packages
+
+fi
 
 ls -a ${PHOME}
